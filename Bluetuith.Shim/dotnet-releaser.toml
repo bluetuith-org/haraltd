@@ -1,0 +1,22 @@
+# configuration file for dotnet-releaser
+profile = "custom"
+[msbuild]
+project = "Bluetuith.Shim.sln"
+[msbuild.properties]
+PublishTrimmed = false
+PublishReadyToRun = false
+SelfContained = false
+[github]
+user = "bluetuith-org"
+repo = "bluetuith-shim-windows"
+version_prefix = "v"
+branches = ["master"]
+[[pack]]
+rid = ["win-x64", "win-x86", "win-arm64"]
+kinds = ["zip"]
+[nuget]
+publish = false
+[scoop]
+publish = false
+[changelog]
+path = "../CHANGELOG.md"
