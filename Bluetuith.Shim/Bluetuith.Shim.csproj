@@ -12,7 +12,7 @@
 		<PackageTags>bluetooth;shim;bluetooth classic;bluetooth windows;bluetooth utility</PackageTags>
 		<Product>bluetuith-shim</Product>
 		<AssemblyName>bluetuith-shim</AssemblyName>
-		<Version>0.0.1</Version>
+		<Version>0.0.2</Version>
 		<OutputType>Exe</OutputType>
 		<PublishSingleFile>true</PublishSingleFile>
 		<SelfContained>true</SelfContained>
