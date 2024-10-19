@@ -87,7 +87,7 @@ bluetuith-shim device connect --help
 **Some connection examples:**
 - To start an A2DP session with a device:
 ```
-bluetuith device connect a2dp -a <address>
+bluetuith-shim device connect a2dp -a <address>
 ```
 (Note that the application has to remain open to maintain the session. Closing the app will close the session.)
 
@@ -105,7 +105,7 @@ Similarly, more subcommands for each profile can be listed using: `bluetuith-shi
 
 - To disconnect a connected device:
 ```
-bluetuith device disconnect -a <address>
+bluetuith-shim device disconnect -a <address>
 ```
 
 ## RPC
