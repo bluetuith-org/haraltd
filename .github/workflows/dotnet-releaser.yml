@@ -2,6 +2,8 @@ name: dotnet-releaser
 
 on:
   push:
+    tags:
+    - '*'
     paths-ignore:
     - 'CHANGELOG.md'
     - 'LICENSE.txt'
