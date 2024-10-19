@@ -1,4 +1,5 @@
-﻿using InTheHand.Net;
+﻿using Bluetuith.Shim.Stack.Providers.MSFT.Adapters;
+using InTheHand.Net;
 using InTheHand.Net.Bluetooth;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Rfcomm;
@@ -13,9 +14,7 @@ internal sealed class DeviceUtils
     {
         BluetoothDevice device = await GetBluetoothDevice(address);
         if (!device.DeviceInformation.Pairing.IsPaired)
-        {
             throw new ArgumentException($"Device {address} is not paired");
-        }
 
         RfcommDeviceServicesResult? result = await device.GetRfcommServicesForIdAsync(RfcommServiceId.FromUuid(service));
         return result is null || result.Services.Count == 0
@@ -25,6 +24,8 @@ internal sealed class DeviceUtils
 
     public static async Task<BluetoothDevice> GetBluetoothDevice(string address)
     {
+        AdapterMethods.ThrowIfRadioNotOperable();
+
         BluetoothDevice? device = await BluetoothDevice.FromBluetoothAddressAsync(BluetoothAddress.Parse(address));
         return device is null ? throw new ArgumentNullException($"The device with address {address} was not found.") : device;
     }

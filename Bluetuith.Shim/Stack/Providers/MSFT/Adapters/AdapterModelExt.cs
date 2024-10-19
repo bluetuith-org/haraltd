@@ -29,25 +29,16 @@ public record class AdapterModelExt : AdapterModel
 
         try
         {
-            if (!HostRadio.IsAvailable)
-            {
-                throw new Exception("Adapter host radio is not available");
-            }
+            AdapterMethods.ThrowIfRadioNotOperable();
 
-            var wasRadioEnabled = HostRadio.IsEnabled;
             using HostRadio hostRadio = new(true);
             radio = BluetoothRadio.Default;
             adapter = new AdapterModelExt(radio, HostRadio.IsAvailable, HostRadio.IsEnabled);
-
-            if (!wasRadioEnabled)
-            {
-                hostRadio.DisableRadio();
-            }
         }
         catch (Exception e)
         {
             return (adapter, StackErrors.ErrorAdapterNotFound.WrapError(new() {
-                {"exception", e},
+                {"exception", e.Message},
             }));
         }
 

@@ -19,6 +19,8 @@ internal sealed class AdapterMethods
     {
         try
         {
+            ThrowIfRadioNotOperable();
+
             using HostRadio radio = new();
             radio.DisconnectRemoteDevice(address);
         }
@@ -38,6 +40,8 @@ internal sealed class AdapterMethods
 
         try
         {
+            ThrowIfRadioNotOperable();
+
             foreach (BluetoothDeviceInfo? device in Client.Handle.PairedDevices)
             {
                 if (device == null)
@@ -50,7 +54,7 @@ internal sealed class AdapterMethods
         {
             return (GenericResult<List<DeviceModel>>.Empty(), StackErrors.ErrorDeviceNotFound.WrapError(new()
             {
-                {"exception", e }
+                {"exception", e.Message }
             }));
         }
 
@@ -88,11 +92,6 @@ internal sealed class AdapterMethods
     {
         try
         {
-            if (!HostRadio.IsAvailable)
-            {
-                throw new Exception("Adapter host radio is not available");
-            }
-
             var isOperable = HostRadio.IsOperable;
 
             if (enable && isOperable || !enable && !isOperable)
@@ -174,5 +173,12 @@ internal sealed class AdapterMethods
         }
 
         return await Task.FromResult(Errors.ErrorNone);
+    }
+
+
+    public static void ThrowIfRadioNotOperable()
+    {
+        if (!HostRadio.IsOperable)
+            throw new Exception("The host radio is not powered on");
     }
 }
