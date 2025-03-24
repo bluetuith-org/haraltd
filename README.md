@@ -13,7 +13,14 @@ This project is funded through [NGI Zero Core](https://nlnet.nl/core), a fund es
 
 # Requirements
 - Windows 10 19041 or later.
-- [.NET Runtime 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+- [.NET Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+- Administrator access for certain Registry-related APIs.
+
+_Note_:
+These builds are currently not signed, which means while launching this application,
+Microsoft SmartScreen warnings may pop up. Press "Run anyway" to run the application.
+Also, Windows Security (i.e. Antimalware Service Executable) may try to scan the application while it is being launched,
+which will delay and increase the startup time.
 
 # Download and Installation
 All downloads can be found within the 'Releases' page of the repository.
@@ -46,12 +53,12 @@ bluetuith-shim adapter set-power-state <on|off>
 
 - To get information about the Bluetooth adapter:
 ```
-bluetuith-shim adapter info
+bluetuith-shim adapter properties
 ```
 
 - To scan for Bluetooth devices:
 ```
-bluetuith-shim adapter start-discovery
+bluetuith-shim adapter discovery start
 ```
 (Press Ctrl-C to stop discovery)
 
@@ -78,9 +85,8 @@ bluetuith-shim device remove -a <address>
 
 - To view information about a device:
 ```
-bluetuith-shim device info -a <address>
+bluetuith-shim device properties -a <address>
 ```
-(Use `--services` to list all Bluetooth services associated with the device. If the device is unpaired, use `--issue-inquiry` to start scanning for the specific remote device.)
 
 Once a device has been paired, a connection can be made to the device.<br />
 To connect to a Bluetooth device, a Bluetooth profile must be specified.<br />
@@ -89,6 +95,11 @@ Currently, within the shim, each connectable profile appears as a subcommand of 
 To view all connectable/supported profiles:
 ```
 bluetuith-shim device connect --help
+```
+
+To automatically connect to a device:
+```
+bluetuith-shim device connect -a <address>
 ```
 
 **Some connection examples:**
@@ -121,108 +132,23 @@ Future versions may support named pipes as well.
 
 JSON is the primary data format used to exchange information to and from the shim.<br />
 
-### Start the server
+**Note: Pbap and Map commands aren't ready for use via RPC yet.**
+
+### Start/Stop the server
 To start the server over a socket:
 ```
-bluetuith-shim rpc start-session --socket-path=<path-to-socket>
+bluetuith-shim server start
+```
+A socket will be automatically created, a popup will be displayed, and a system tray icon will be created once the service starts.
+
+To stop the server:
+```
+bluetuith-shim server stop
 ```
 
 Once the server has started, commands can be sent to the shim via the socket.
 
-### Request format
-To send a request to execute a command to the shim, the message should look like:
-```
-{ "command": ["device", "info", "-a", "AA:BB:CC:DD:EE:FF"], "requestId": 1 }
-```
-
-Where:
-- The `command` property must contain an string array of commands and associated subcommands/options.
-- The `requestId` property must contain a non-zero positive integer.
-
-The message must be serialized to UTF-8 bytes before sending it to the shim.
-
-If the command is parsed correctly, the shim replies back with:
-```
-{ "operationId": 1, "requestId": 1, "status": "ok", "data": { "command": "info" } }
-```
-
-To indicate that the command was parsed and is being executed.<br />
-Note that all calls are asynchronous, so use the `requestId` or `operationId` to keep track of requests and replies.
-
-### Reply format
-Once an operation has finished, the shim will encode the command's result to JSON and send it to the client.
-
-The reply payload consists of two parts:
-- A Big-Endian encoded 4-byte header which contains the total length or size of the payload
-- A UTF-8 encoded JSON payload, in bytes.
-
-Which should look like this:
-```
-[<4-byte length header>]{JSON payload}
-```
-
-The length header is appended primarily for outputs from the `pbap` and `map` commands, where outputs can be large (like contact and message listings).
-
-If the command outputs any events, the JSON payload will look like:
-```
-{ "operationId": 1, "requestId": 1, "eventId": 0, "event": { "fileTransferEvent": { "fileName": "customFile.mp4", "fileSize": 100 ...} } }
-```
-
-If the command does not return any error, the JSON payload will look like:
-```
-{ "operationId": 1, "requestId": 1, "status": "ok", "data": { "deviceProperties": { "name": "Bluetooth Device", "address": "AA:BB:CC:DD:EE:FF" ...} } }
-```
-
-If the commands returns an error, the JSON payload will look like:
-```
-{ "operationId": 1, "requestId": 1, "status": "error", "error": { "code": 10, "name": "ERROR_DEVICE_NOT_FOUND", "description": "" ...} }
-```
-
-A sample program to parse a reply payload is provided in the 'Samples' directory.
-
-### Authentication
-This section mainly applies to the `pairing` operation.
-
-During a pairing operation, if the device asks to perform additional authentication (like confirming if PINs match),<br />
-an authentication event is emitted.
-
-An authentication event usually is in the following format:
-```
-{ "operationId": 1, "requestId": 1, "eventId": 1, "event": { "pairingAuthenticationEvent": { "pin": 0000, "timeout": 10000, "authenticationType": "ConfirmYesNo" } } }
-```
-Note the operation ID of the event.
-
-There are two authentication request types: `ConfirmYesNo` and `ConfirmInput`.
-- The reply to a `ConfirmYesNo` request should be one of `y|yes|n|no`.
-- The reply to a `ConfirmInput` request should be the same PIN text as provided in the event.
-
-To reply to the `ConfirmYesNo` authentication request for example, the following JSON payload should be sent:
-```
-{ "command": ["rpc", "auth", "--operation-id", 1, "--response", "yes"], "requestId": 1 }
-```
-
-### Cancelling operations
-To cancel any long running operations, the operation ID of the running operation will have to be obtained first.
-
-For example, if  a device discovery operation has been started:
-```
-{ "command": ["adapter", "start-discovery"], "requestId": 1 }
-```
-
-And a reply has been obtained as soon as the command request was sent:
-```
-{ "operationId": 1, "requestId": 1, "status": "ok", "data": { "command": "start-discovery" } }
-```
-Note the operation ID of the response.
-
-To stop the device discovery, the following payload should be sent:
-```
-{ "command": ["rpc", "cancel", "--operation-id", 1], "requestId": 1 }
-```
-
-### Version querying
-While in RPC mode, do not use the `-v` switch to query the version. Instead use `rpc version` to get a version number
-serialized to JSON, that can be parsed.
+For more information on how to communicate with the server, see the [RPC specification](https://github.com/bluetuith-org/bluetuith-shim-windows/blob/master/docs/shim-rpc-spec.md).
 
 # Credits
 These repositories were invaluable during the development of the shim.<br />
