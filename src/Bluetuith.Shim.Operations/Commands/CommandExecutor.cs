@@ -6,7 +6,7 @@ public static class CommandExecutor
 {
     public static ErrorData Run(string[] args)
     {
-        OperationToken token = OperationManager.GenerateToken(0);
+        OperationToken token = OperationManager.GenerateToken(0, Guid.NewGuid());
 
         OperationManager.ExecuteHandler(token, args);
         OperationManager.WaitForExtendedOperations();
