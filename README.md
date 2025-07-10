@@ -13,7 +13,6 @@ This project is funded through [NGI Zero Core](https://nlnet.nl/core), a fund es
 
 # Requirements
 - Windows 10 19041 or later.
-- [.NET Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
 - Administrator access for certain Registry-related APIs.
 
 _Note_:

@@ -1,5 +1,18 @@
 # Changelog
 
+# v0.0.4 (10th July 2025)
+This release brings the following changes:
+
+- Improved Object Push support
+- Optimized RPC
+- New client-based discovery
+- Authentication agents for pairing and object push (the pairing agent is currently a no-op on Windows)
+
+And much more.
+
+The binary size is reduced (from 34MB to 13MB) via NativeAOT, and no longer requires the .NET Runtime
+to be installed. It will now run natively.
+
 # v0.0.3 (7th March 2025)
 
 ## Changes
