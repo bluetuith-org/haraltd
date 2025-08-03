@@ -33,22 +33,27 @@ public class MSFTServer : IServer
             var resumeToken = new CancellationTokenSource();
             _ = Task.Run(async () => await Watchers.Setup(token, resumeToken));
 
-            trayIcon.ShowInfo($"The shim RPC server instance has started at socket '{SocketPath}'");
-
             ErrorData error = Opp.StartFileTransferServerAsync(token).GetAwaiter().GetResult();
             if (error != Errors.ErrorNone)
             {
                 trayIcon.ShowError(error);
+                return error;
             }
+
+            Output.OnStarted += (socketPath) =>
+                trayIcon.ShowInfo(
+                    $"The shim RPC server instance has started at socket '{socketPath}'"
+                );
 
             error = Output.StartSocketServer(SocketPath, resumeToken, token);
             OperationManager.CancelAllAsync().Wait();
             if (error != Errors.ErrorNone)
             {
                 trayIcon.ShowError(error);
+                return error;
             }
 
-            return error;
+            return Errors.ErrorNone;
         }
         catch (Exception ex)
         {
@@ -128,7 +133,7 @@ public class MSFTServer : IServer
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
     }
 
-    public bool ShouldRelaunch()
+    public bool Relaunch()
     {
         try
         {

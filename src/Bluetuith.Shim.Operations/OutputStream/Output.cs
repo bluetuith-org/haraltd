@@ -13,6 +13,8 @@ public static class Output
         get => _isOnSocket;
     }
 
+    public static event Action<string> OnStarted;
+
     public static ErrorData StartSocketServer(
         string socketPath,
         CancellationTokenSource waitForResume,
@@ -24,6 +26,7 @@ public static class Output
             _output = new SocketOutput(socketPath, waitForResume, token);
             _isOnSocket = true;
 
+            OnStarted?.Invoke(socketPath);
             _output.WaitForClose();
         }
         catch (Exception e)

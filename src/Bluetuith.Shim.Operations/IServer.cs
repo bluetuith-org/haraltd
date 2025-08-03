@@ -16,7 +16,7 @@ public interface IServer
     }
 
     public bool IsAdministrator();
-    public bool ShouldRelaunch();
+    public bool Relaunch();
     public ErrorData StartServer(string socketPath, string parameter);
     public ErrorData StopServer(string parameter);
 }

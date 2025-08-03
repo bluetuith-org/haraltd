@@ -13,7 +13,7 @@ internal static class Program
         ServerHost.Instance = new Bluetuith.Shim.Stack.Microsoft.MSFTServer();
 #endif
 
-        ServerHost.Instance.ShouldRelaunch();
+        ServerHost.Instance.Relaunch();
 
         using var sigintHandler = PosixSignalRegistration.Create(PosixSignal.SIGINT, SignalHandler);
         ErrorData error = CommandExecutor.Run(args);
