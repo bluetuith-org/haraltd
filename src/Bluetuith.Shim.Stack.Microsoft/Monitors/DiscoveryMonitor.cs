@@ -7,12 +7,23 @@ using Lock = DotNext.Threading.Lock;
 
 namespace Bluetuith.Shim.Stack.Microsoft;
 
-internal static class DiscoveryMonitor
+internal static partial class DiscoveryMonitor
 {
-    private static readonly ConcurrentDictionary<Guid, OperationToken> clients = [];
+    private partial record class DiscoveryClient(
+        OperationToken Token,
+        Monitor.Subscriber Subscriber
+    ) : IDisposable
+    {
+        public void Dispose()
+        {
+            Subscriber?.Dispose();
+            Token.Release();
+        }
+    }
+
+    private static readonly ConcurrentDictionary<Guid, DiscoveryClient> clients = [];
     private static Monitor monitor = new(BluetoothDevice.GetDeviceSelectorFromPairingState(false));
     private static readonly Lock @lock = Lock.Semaphore(new(1, 1));
-    private static CancellationTokenSource stopTimeout = null;
 
     public static bool IsStarted(OperationToken token)
     {
@@ -43,51 +54,25 @@ internal static class DiscoveryMonitor
                 "Device discovery is already running"
             );
 
-        clients.TryAdd(token.ClientId, token);
-
-        if (stopTimeout != null)
-        {
-            stopTimeout.Cancel();
-            stopTimeout.Dispose();
-            stopTimeout = null;
-        }
+        clients.TryAdd(token.ClientId, new DiscoveryClient(token, Subscriber(monitor, token)));
 
         try
         {
-            _ = Task.Run(() =>
-            {
-                Output.ClientEvent(
-                    adapterEvent with
-                    {
-                        OptionDiscovering = true,
-                        Action = EventAction.Updated,
-                    },
-                    token
-                );
-
-                using var subscriber = Subscriber(monitor, token);
-
-                token.Wait();
-
-                Output.ClientEvent(
-                    adapterEvent with
-                    {
-                        OptionDiscovering = false,
-                        Action = EventAction.Updated,
-                    },
-                    token
-                );
-            });
-
             if (!monitor.Start())
-                return Errors.ErrorDeviceDiscovery.AddMetadata(
-                    "exception",
-                    "The device discovery service is being reset"
-                );
+                throw new Exception("The device discovery service is being reset");
+
+            Output.ClientEvent(
+                adapterEvent with
+                {
+                    OptionDiscovering = true,
+                    Action = EventAction.Updated,
+                },
+                token
+            );
         }
         catch (Exception e)
         {
-            StopInternal(token, true, out _);
+            StopInternal(token, true);
             return Errors.ErrorDeviceDiscovery.AddMetadata("exception", e.Message);
         }
 
@@ -107,20 +92,34 @@ internal static class DiscoveryMonitor
         if (!@lock.TryAcquire(out var holder))
             return Errors.ErrorOperationInProgress;
 
-        CancellationToken tok = default;
+        var adapterEvent = new AdapterEvent();
+        var error = adapterEvent.MergeRadioEventData();
+        if (error != Errors.ErrorNone)
+        {
+            StopInternal(token, true, true);
+            return error;
+        }
+
         using (holder)
         {
-            if (!StopInternal(token, false, out var cancellationToken))
+            if (!StopInternal(token, false))
                 return Errors.ErrorDeviceDiscovery.AddMetadata(
                     "exception",
                     "Device discovery is not running"
                 );
-
-            tok = cancellationToken;
         }
 
-        if (tok != default)
-            monitor.Stop(stopTimeout.Token);
+        if (clients.IsEmpty)
+            monitor.Stop();
+
+        Output.ClientEvent(
+            adapterEvent with
+            {
+                OptionDiscovering = false,
+                Action = EventAction.Updated,
+            },
+            token
+        );
 
         return Errors.ErrorNone;
     }
@@ -128,35 +127,30 @@ internal static class DiscoveryMonitor
     internal static bool StopInternal(
         OperationToken token,
         bool forceStop,
-        out CancellationToken cancellationToken
+        bool clearAllClients = false
     )
     {
-        cancellationToken = default;
-
-        if (!clients.TryRemove(token.ClientId, out var tok))
+        if (!clients.TryRemove(token.ClientId, out var client))
             return false;
+
+        client.Dispose();
+
+        if (clearAllClients)
+            foreach (var c in clients.Values)
+                c.Dispose();
 
         if (forceStop)
         {
-            token.Release();
-
             monitor.Dispose();
             monitor = new(BluetoothDevice.GetDeviceSelectorFromPairingState(false));
 
             return true;
         }
 
-        tok.Release();
         foreach (var device in monitor.CurrentDevices)
         {
             if (device.OptionPaired.HasValue && !device.OptionPaired.Value)
                 Output.ClientEvent(device with { Action = EventAction.Removed }, token);
-        }
-
-        if (clients.IsEmpty && stopTimeout == null)
-        {
-            stopTimeout = new();
-            cancellationToken = stopTimeout.Token;
         }
 
         return true;
@@ -164,24 +158,24 @@ internal static class DiscoveryMonitor
 
     private static Monitor.Subscriber Subscriber(Monitor monitor, OperationToken token)
     {
-        return new Monitor.Subscriber(monitor, token.OperationId)
+        return new Monitor.Subscriber(monitor, token)
         {
-            OnAdded = (info) =>
+            OnAdded = static (info, tok) =>
             {
                 if (info.OptionPaired.HasValue && !info.OptionPaired.Value)
-                    Output.ClientEvent(info, token);
+                    Output.ClientEvent(info, tok);
             },
 
-            OnUpdated = (oldInfo, newInfo) =>
+            OnUpdated = static (oldInfo, newInfo, tok) =>
             {
                 if (newInfo.OptionPaired.HasValue && !newInfo.OptionPaired.Value)
-                    Output.ClientEvent(newInfo, token);
+                    Output.ClientEvent(newInfo, tok);
             },
 
-            OnRemoved = (info) =>
+            OnRemoved = static (info, tok) =>
             {
                 if (info.OptionPaired.HasValue && !info.OptionPaired.Value)
-                    Output.ClientEvent(info, token);
+                    Output.ClientEvent(info, tok);
             },
         };
     }

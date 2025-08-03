@@ -1,8 +1,10 @@
 ﻿using System.Collections.Concurrent;
+using System.Threading;
 using Bluetuith.Shim.DataTypes;
 using DotNext.Threading;
 using Windows.Devices.Enumeration;
 using static Bluetuith.Shim.DataTypes.IEvent;
+using Timer = System.Timers.Timer;
 
 namespace Bluetuith.Shim.Stack.Microsoft;
 
@@ -13,6 +15,7 @@ internal partial class Monitor : IDisposable
 
     private readonly DeviceWatcher _watcher;
     private readonly ManualResetEvent mre = new(true);
+    private readonly Timer _stopTimer;
 
     internal IEnumerable<DeviceChanges> CurrentDevices
     {
@@ -37,6 +40,10 @@ internal partial class Monitor : IDisposable
 
     internal Monitor(string aqs)
     {
+        _stopTimer = new Timer(TimeSpan.FromSeconds(10));
+        _stopTimer.Elapsed += StopTimer_Elapsed;
+        _stopTimer.AutoReset = false;
+
         _watcher = DeviceInformation.CreateWatcher(
             aqs,
             new List<string>
@@ -65,6 +72,19 @@ internal partial class Monitor : IDisposable
         );
     }
 
+    private void StopTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+    {
+        if (
+            _watcher.Status != DeviceWatcherStatus.Started
+            && _watcher.Status != DeviceWatcherStatus.EnumerationCompleted
+        )
+            return;
+
+        mre.Reset();
+
+        _watcher.Stop();
+    }
+
     private void Watcher_Stopped(DeviceWatcher sender, object args)
     {
         ClearDevices();
@@ -85,39 +105,34 @@ internal partial class Monitor : IDisposable
         if (!mre.WaitOne(TimeSpan.FromSeconds(1)))
             return false;
 
-        if (
-            _watcher.Status == DeviceWatcherStatus.Stopped
-            || _watcher.Status == DeviceWatcherStatus.Aborted
-            || _watcher.Status == DeviceWatcherStatus.Created
-        )
+        _stopTimer.Stop();
+
+        if (_watcher.Status == DeviceWatcherStatus.Created)
         {
             _watcher.Added += Watcher_Added;
             _watcher.Updated += Watcher_Updated;
             _watcher.Removed += Watcher_Removed;
             _watcher.Stopped += Watcher_Stopped;
 
-            _watcher.Start();
+            goto StartWatcher;
         }
+
+        if (
+            _watcher.Status != DeviceWatcherStatus.Stopped
+            && _watcher.Status != DeviceWatcherStatus.Aborted
+        )
+            return true;
+
+        StartWatcher:
+        _watcher.Start();
 
         return true;
     }
 
-    internal void Stop(CancellationToken timeout)
+    internal void Stop()
     {
-        if (_watcher.Status == DeviceWatcherStatus.Started)
-            return;
-
-        timeout.WaitHandle.WaitOne();
-        if (timeout.IsCancellationRequested)
-            return;
-
-        mre.Reset();
-
-        _watcher.Stop();
-        _watcher.Added -= Watcher_Added;
-        _watcher.Updated -= Watcher_Updated;
-        _watcher.Removed -= Watcher_Removed;
-        _watcher.Stopped -= Watcher_Stopped;
+        _stopTimer.Stop();
+        _stopTimer.Start();
     }
 
     internal void ClearDevices()
@@ -131,13 +146,17 @@ internal partial class Monitor : IDisposable
         try
         {
             _watcher.Stop();
+            _stopTimer.Stop();
         }
         catch { }
         finally
         {
+            _stopTimer.Elapsed -= StopTimer_Elapsed;
             _watcher.Added -= Watcher_Added;
             _watcher.Updated -= Watcher_Updated;
             _watcher.Removed -= Watcher_Removed;
+
+            _stopTimer.Dispose();
         }
     }
 
@@ -197,13 +216,13 @@ internal partial class Monitor : IDisposable
             switch (eventAction)
             {
                 case EventAction.Added:
-                    subscriber.OnAdded(oldChanges);
+                    subscriber.OnAdded(oldChanges, subscriber.Token);
                     break;
                 case EventAction.Updated:
-                    subscriber.OnUpdated(oldChanges, newChanges);
+                    subscriber.OnUpdated(oldChanges, newChanges, subscriber.Token);
                     break;
                 case EventAction.Removed:
-                    subscriber.OnRemoved(oldChanges);
+                    subscriber.OnRemoved(oldChanges, subscriber.Token);
                     break;
             }
         }
@@ -221,25 +240,30 @@ internal partial class Monitor : IDisposable
 
     internal partial class Subscriber : IDisposable
     {
-        internal Action<DeviceChanges> OnAdded = delegate { };
-        internal Action<DeviceChanges> OnRemoved = delegate { };
-        internal Action<DeviceChanges, DeviceChanges> OnUpdated = delegate { };
+        internal Action<DeviceChanges, OperationToken> OnAdded = static delegate { };
+        internal Action<DeviceChanges, OperationToken> OnRemoved = static delegate { };
+        internal Action<DeviceChanges, DeviceChanges, OperationToken> OnUpdated = static delegate
+        { };
 
         private readonly Monitor _monitor;
 
-        internal long Id { get; private set; }
+        internal long Id
+        {
+            get => Token.OperationId;
+        }
+        internal OperationToken Token { get; private set; }
 
-        internal Subscriber(Monitor monitor, long subId)
+        internal Subscriber(Monitor monitor, OperationToken token)
         {
             _monitor = monitor;
-            Id = subId;
+            Token = token;
 
-            _monitor.RegisterSubscriber(this);
+            _monitor?.RegisterSubscriber(this);
         }
 
         public void Dispose()
         {
-            _monitor.UnregisterSubscriber(this);
+            _monitor?.UnregisterSubscriber(this);
         }
     }
 

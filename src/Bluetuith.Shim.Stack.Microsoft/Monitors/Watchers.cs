@@ -16,11 +16,8 @@ namespace Bluetuith.Shim.Stack.Microsoft;
 
 internal static class Watchers
 {
-    private static CancellationTokenSource _resume;
-
     private static bool _isAdapterWatcherRunning = false;
     private static bool _isDeviceWatcherRunning = false;
-
     private static bool _isBatteryWatcherRunning = false;
 
     internal static bool IsDeviceWatcherRunning
@@ -33,19 +30,10 @@ internal static class Watchers
         CancellationTokenSource waitForResume
     )
     {
-        _resume = waitForResume;
-
         try
         {
-            while (!HostRadio.IsOperable)
-            {
-                if (token.IsReleased())
-                {
-                    return Errors.ErrorNone;
-                }
-
-                await Task.Delay(1000);
-            }
+            if (!waitForResume.IsCancellationRequested)
+                waitForResume.Token.WaitHandle.WaitOne();
 
             await Task.WhenAll(
                 new List<Task>()
@@ -68,9 +56,6 @@ internal static class Watchers
     {
         if (_isAdapterWatcherRunning)
             return;
-
-        if (!_resume.IsCancellationRequested)
-            _resume.Token.WaitHandle.WaitOne();
 
         if (token.CancelTokenSource.IsCancellationRequested)
             return;
@@ -110,7 +95,6 @@ internal static class Watchers
                 }
             );
 
-            // TODO: Use WM_DEVICECHANGE events instead.
             void elapsedAction(object s, ElapsedEventArgs e)
             {
                 var discoverable = PInvoke.BluetoothIsDiscoverable(null);
@@ -149,9 +133,6 @@ internal static class Watchers
     {
         if (_isBatteryWatcherRunning)
             return;
-
-        if (!_resume.IsCancellationRequested)
-            _resume.Token.WaitHandle.WaitOne();
 
         if (token.CancelTokenSource.IsCancellationRequested)
             return;
@@ -228,9 +209,6 @@ internal static class Watchers
         if (_isDeviceWatcherRunning)
             return;
 
-        if (!_resume.IsCancellationRequested)
-            _resume.Token.WaitHandle.WaitOne();
-
         try
         {
             if (token.CancelTokenSource.IsCancellationRequested)
@@ -240,27 +218,27 @@ internal static class Watchers
                 BluetoothDevice.GetDeviceSelectorFromPairingState(true)
             );
 
-            using var subscriber = new Monitor.Subscriber(monitor, token.OperationId)
+            using var subscriber = new Monitor.Subscriber(monitor, token)
             {
-                OnAdded = (info) =>
+                OnAdded = static (info, tok) =>
                 {
                     if (info.OptionPaired.HasValue && info.OptionPaired.Value)
                     {
                         info.RefreshInformation();
-                        Output.Event(info, token);
+                        Output.Event(info, tok);
                     }
                 },
-                OnRemoved = (info) =>
+                OnRemoved = static (info, tok) =>
                 {
-                    Output.Event(info, token);
+                    Output.Event(info, tok);
                 },
-                OnUpdated = (oldInfo, newInfo) =>
+                OnUpdated = static (oldInfo, newInfo, tok) =>
                 {
                     var wasPaired = oldInfo.OptionPaired.HasValue && oldInfo.OptionPaired.Value;
                     var isPaired = newInfo.OptionPaired.HasValue && newInfo.OptionPaired.Value;
 
                     if (isPaired)
-                        Output.Event(newInfo, token);
+                        Output.Event(newInfo, tok);
                 },
             };
 
