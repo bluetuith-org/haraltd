@@ -323,14 +323,14 @@ internal partial class SocketServer : UdsServer
 
             try
             {
-                _stream?.Dispose();
                 _writer?.Dispose();
+                _stream?.Dispose();
 
                 Initialize(_session);
             }
             catch
             {
-                sessionStreams.TryRemove(Id, out var sessionStream);
+                sessionStreams.TryRemove(Id, out _);
                 return false;
             }
 
