@@ -7,15 +7,19 @@ namespace Bluetuith.Shim.DataTypes;
 public interface IDevice : IDeviceEvent
 {
     [JsonPropertyName("name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string Name { get; set; }
 
     [JsonPropertyName("alias")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string Alias { get; set; }
 
     [JsonPropertyName("class")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public uint Class { get; set; }
 
     [JsonPropertyName("legacy_pairing")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool LegacyPairing { get; set; }
 }
 

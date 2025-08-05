@@ -28,6 +28,7 @@ internal class KebabCaseEnumConverter<TEnum>()
 [JsonSerializable(typeof(IFileTransfer))]
 [JsonSerializable(typeof(MessageItem))]
 [JsonSerializable(typeof(IVcard))]
+[JsonSerializable(typeof(Guid[]))]
 [JsonSourceGenerationOptions(
     GenerationMode = JsonSourceGenerationMode.Metadata,
     UseStringEnumConverter = true,

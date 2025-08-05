@@ -8,15 +8,19 @@ namespace Bluetuith.Shim.DataTypes;
 public interface IAdapter : IAdapterEvent
 {
     [JsonPropertyName("name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string Name { get; set; }
 
     [JsonPropertyName("alias")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string Alias { get; set; }
 
     [JsonPropertyName("unique_name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string UniqueName { get; set; }
 
     [JsonPropertyName("uuids")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Guid[] UUIDs { get; set; }
 }
 
@@ -25,12 +29,12 @@ public abstract record class AdapterBaseModel : AdapterEventBaseModel, IAdapter
     public string Name { get; set; } = "";
     public string Alias { get; set; } = "";
     public string UniqueName { get; set; } = "";
-    public Guid[] UUIDs { get; set; } = [];
+    public Guid[] UUIDs { get; set; }
 
     protected void PrintProperties(ref StringBuilder stringBuilder)
     {
         stringBuilder.AppendLine($"Name: {Name}");
-        if (UUIDs.Length > 0)
+        if (UUIDs != null && UUIDs.Length > 0)
         {
             stringBuilder.AppendLine("Profiles:");
             foreach (Guid uuid in UUIDs)
