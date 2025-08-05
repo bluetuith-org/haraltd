@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Threading;
 using Bluetuith.Shim.DataTypes;
 using DotNext.Threading;
 using Windows.Devices.Enumeration;

@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.Monitors;
 using Microsoft.Win32;
 using Nefarius.Utilities.Bluetooth;
 using Nefarius.Utilities.DeviceManagement.PnP;
@@ -95,7 +96,7 @@ internal static class AdapterMethods
         }
         catch (Exception ex)
         {
-            return Errors.ErrorDeviceUnpairing.AddMetadata("exception", ex);
+            return Errors.ErrorDeviceUnpairing.AddMetadata("exception", ex.Message);
         }
 
         return Errors.ErrorNone;
@@ -174,10 +175,12 @@ internal static class AdapterMethods
                         "Could not set discovery state: Win32 error: " + Marshal.GetLastWin32Error()
                     );
             }
+
+            AdapterDiscoverableEventMonitor.PushDiscoverableEvent();
         }
         catch (Exception ex)
         {
-            return Errors.ErrorAdapterStateAccess.AddMetadata("exception", ex);
+            return Errors.ErrorAdapterStateAccess.AddMetadata("exception", ex.Message);
         }
         finally
         {

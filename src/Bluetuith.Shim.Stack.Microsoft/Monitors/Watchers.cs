@@ -1,16 +1,10 @@
-﻿using System.Text;
-using System.Timers;
-using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.Monitors;
 using Bluetuith.Shim.Operations;
 using Nefarius.Utilities.Bluetooth;
 using Nefarius.Utilities.DeviceManagement.PnP;
 using Windows.Devices.Bluetooth;
-using Windows.Devices.Radios;
-using Windows.Foundation;
-using Windows.Win32;
-using WmiLight;
 using static Bluetuith.Shim.DataTypes.IEvent;
-using Timer = System.Timers.Timer;
 
 namespace Bluetuith.Shim.Stack.Microsoft;
 
@@ -62,66 +56,15 @@ internal static class Watchers
 
         try
         {
-            var adapter = BluetoothAdapter.GetDefaultAsync().GetAwaiter().GetResult();
-            if (adapter == null)
-                throw new NullReferenceException(nameof(adapter));
+            var poweredStateMonitor = new AdapterPowerStateMonitor(token);
 
-            var radio = adapter.GetRadioAsync().GetAwaiter().GetResult();
-            if (radio == null)
-                throw new NullReferenceException(nameof(radio));
-
-            var adapterEvent = new AdapterEvent();
-            var error = adapterEvent.MergeRadioEventData();
-            if (error != Errors.ErrorNone)
-                throw new Exception(error.Description);
-
-            var poweredEvent = new AdapterEvent()
-            {
-                Action = EventAction.Updated,
-                Address = adapterEvent.Address,
-            };
-
-            var discoverableEvent = poweredEvent with
-            {
-                OptionDiscoverable = PInvoke.BluetoothIsDiscoverable(null) > 0,
-            };
-
-            TypedEventHandler<Radio, object> stateChanged = new(
-                (radio, _) =>
-                {
-                    poweredEvent.OptionPowered = poweredEvent.OptionPairable =
-                        radio.State == RadioState.On;
-                    Output.Event(poweredEvent, token);
-                }
-            );
-
-            void elapsedAction(object s, ElapsedEventArgs e)
-            {
-                var discoverable = PInvoke.BluetoothIsDiscoverable(null);
-                if (
-                    discoverableEvent.OptionDiscoverable.HasValue
-                    && discoverableEvent.OptionDiscoverable.Value == discoverable
-                )
-                    return;
-
-                discoverableEvent.OptionDiscoverable = discoverable > 0;
-                Output.Event(discoverableEvent, token);
-            }
-
-            radio.StateChanged += stateChanged;
-
-            using var timer = new Timer(1000);
-            timer.Elapsed += elapsedAction;
-            timer.AutoReset = true;
-            timer.Start();
-
-            _isAdapterWatcherRunning = true;
+            poweredStateMonitor.Start();
+            AdapterDiscoverableEventMonitor.Start(token);
 
             token.Wait();
 
-            radio.StateChanged -= stateChanged;
-            timer.Elapsed -= elapsedAction;
-            timer.Stop();
+            poweredStateMonitor.Stop();
+            AdapterDiscoverableEventMonitor.Stop();
         }
         finally
         {
@@ -249,87 +192,5 @@ internal static class Watchers
         {
             _isDeviceWatcherRunning = false;
         }
-    }
-}
-
-internal sealed partial class RegistryWatcher : IDisposable
-{
-    private readonly WmiConnection _connection;
-
-    private readonly WmiEventWatcher _eventWatcher;
-
-    private readonly EventHandler<WmiEventArrivedEventArgs> _onChange;
-
-    private bool _started = false;
-
-    internal RegistryWatcher(
-        string hive,
-        string rootPath,
-        EventHandler<WmiEventArrivedEventArgs> onChange
-    )
-    {
-        var query =
-            $@"SELECT * FROM RegistryTreeChangeEvent WHERE Hive = '{hive}' AND RootPath = '{rootPath.Replace(@"\", @"\\")}'";
-
-        _connection = new WmiConnection();
-        _eventWatcher = _connection.CreateEventWatcher(query);
-        _onChange = onChange;
-    }
-
-    internal RegistryWatcher(
-        string hive,
-        string keyPath,
-        string[] valueNames,
-        EventHandler<WmiEventArrivedEventArgs> onChange
-    )
-    {
-        var sb = new StringBuilder();
-        sb.Append(
-            $@"SELECT * FROM RegistryValueChangeEvent WHERE Hive = '{hive}' AND KeyPath = '{keyPath.Replace(@"\", @"\\")}'"
-        );
-
-        var count = 0;
-        sb.Append("AND (");
-        foreach (var valueName in valueNames)
-        {
-            if (count > 0)
-                sb.Append(" OR ");
-
-            sb.Append($@"ValueName = '{valueName}'");
-            count++;
-        }
-        sb.Append(')');
-
-        _connection = new WmiConnection();
-        _eventWatcher = _connection.CreateEventWatcher(sb.ToString());
-        _onChange = onChange;
-    }
-
-    internal void Start()
-    {
-        _eventWatcher.EventArrived += _onChange;
-        _eventWatcher.Start();
-        _started = true;
-    }
-
-    internal void Stop()
-    {
-        if (!_started)
-            return;
-
-        _eventWatcher.EventArrived -= _onChange;
-        _eventWatcher.Stop();
-        _connection.Close();
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            _eventWatcher.EventArrived -= _onChange;
-            _eventWatcher?.Dispose();
-            _connection?.Dispose();
-        }
-        catch { }
     }
 }
