@@ -134,11 +134,12 @@ public class Opp
     [Hidden]
     /// <summary>Send a file to a device with an open session. (RPC mode only).</summary>
     /// <param name="file">-f, A full path of the file to send.</param>
-    public int SendFile(ConsoleAppContext context, string file)
+    public int SendFile(ConsoleAppContext context, string address, string file)
     {
-        var (filetransfer, error) = BluetoothStack.CurrentStack.QueueFileSend(file);
+        var token = (OperationToken)context.State;
+        var (filetransfer, error) = BluetoothStack.CurrentStack.QueueFileSend(token, address, file);
 
-        return Output.Result(filetransfer, error, (OperationToken)context.State);
+        return Output.Result(filetransfer, error, token);
     }
 
     [Hidden]
@@ -146,9 +147,11 @@ public class Opp
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public int CancelTransfer(ConsoleAppContext context, string address)
     {
-        var error = BluetoothStack.CurrentStack.CancelFileTransfer(address);
+        var token = (OperationToken)context.State;
 
-        return Output.Error(error, (OperationToken)context.State);
+        var error = BluetoothStack.CurrentStack.CancelFileTransfer(token, address);
+
+        return Output.Error(error, token);
     }
 
     [Hidden]
@@ -167,11 +170,13 @@ public class Opp
 
     [Hidden]
     /// <summary>Stop an Object Push client session with a device (RPC mode only).</summary>
-    public int StopSession(ConsoleAppContext context)
+    public int StopSession(ConsoleAppContext context, string address)
     {
+        var token = (OperationToken)context.State;
+
         return Output.Error(
-            BluetoothStack.CurrentStack.StopFileTransferSession(),
-            (OperationToken)context.State
+            BluetoothStack.CurrentStack.StopFileTransferSession(token, address),
+            token
         );
     }
 
@@ -179,22 +184,22 @@ public class Opp
     /// <param name="directory">-d, A full path to a directory to save incoming file transfers.</param>
     public async Task<int> StartServer(ConsoleAppContext context, string directory)
     {
+        var token = (OperationToken)context.State;
+
         ErrorData error = await BluetoothStack.CurrentStack.StartFileTransferServerAsync(
-            (OperationToken)context.State,
+            token,
             directory
         );
 
-        return Output.Error(error, (OperationToken)context.State);
+        return Output.Error(error, token);
     }
 
     [Hidden]
     /// <summary>Stop an Object Push server (RPC only).</summary>
     public int StopServer(ConsoleAppContext context)
     {
-        return Output.Error(
-            BluetoothStack.CurrentStack.StopFileTransferServer(),
-            (OperationToken)context.State
-        );
+        var token = (OperationToken)context.State;
+        return Output.Error(BluetoothStack.CurrentStack.StopFileTransferServer(token), token);
     }
 }
 

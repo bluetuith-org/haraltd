@@ -4,6 +4,7 @@ using Bluetuith.Shim.Operations;
 using GoodTimeStudio.MyPhone.OBEX.Opp;
 using InTheHand.Net;
 using InTheHand.Net.Bluetooth;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 using static Bluetuith.Shim.DataTypes.IFileTransferEvent;
 
 namespace Bluetuith.Shim.Stack.Microsoft;
@@ -25,7 +26,13 @@ internal static class Opp
     {
         try
         {
-            if (_sessions.GetClientSession(out _, out _))
+            if (!token.HasClientId)
+                return Errors.ErrorDeviceFileTransferSession.AddMetadata(
+                    "exception",
+                    "No client ID found"
+                );
+
+            if (_sessions.GetClientSession(token, address, out _, out _))
                 return Errors.ErrorDeviceFileTransferSession.AddMetadata(
                     "exception",
                     "An Object Push Client session is in progress"
@@ -43,7 +50,7 @@ internal static class Opp
             if (_client.ObexClient == null)
                 throw new Exception("OPP ObexClient is null on connect");
 
-            _sessions.Start(addr, new ClientSession(addr, _client, token));
+            _sessions.Start(token, address, new ClientSession(_client));
         }
         catch (OperationCanceledException)
         {
@@ -57,42 +64,38 @@ internal static class Opp
         return Errors.ErrorNone;
     }
 
-    internal static (FileTransferModel, ErrorData) QueueFileSend(string filepath)
+    internal static (FileTransferModel, ErrorData) QueueFileSend(
+        OperationToken token,
+        string address,
+        string filepath
+    )
     {
-        if (!_sessions.GetClientSession(out var client, out var error))
+        if (!_sessions.GetClientSession(token, address, out var client, out var error))
             return (default, error);
 
         return client.QueueFileSend(filepath);
     }
 
-    internal static async Task<ErrorData> SendFileAsync(string filepath)
+    internal static async Task<ErrorData> SendFileAsync(
+        OperationToken token,
+        string address,
+        string filepath
+    )
     {
-        if (!_sessions.GetClientSession(out var client, out var error))
+        if (!_sessions.GetClientSession(token, address, out var client, out var error))
             return error;
 
         return await client.SendFileAsync(filepath);
     }
 
-    internal static ErrorData CancelFileTransfer(string address)
+    internal static ErrorData CancelFileTransfer(OperationToken token, string address)
     {
-        try
-        {
-            var addr = BluetoothAddress.Parse(address);
-
-            return _sessions.CancelTransfer(addr);
-        }
-        catch (Exception e)
-        {
-            return Errors.ErrorDeviceFileTransferSession.AddMetadata("exception", e.Message);
-        }
+        return _sessions.CancelTransfer(token, address);
     }
 
-    internal static ErrorData StopFileTransferSession()
+    internal static ErrorData StopFileTransferSession(OperationToken token, string address)
     {
-        if (!_sessions.GetClientSession(out var client, out var error))
-            return error;
-
-        return _sessions.Stop(client.Address);
+        return _sessions.Stop(token, address);
     }
 
     internal static async Task<ErrorData> StartFileTransferServerAsync(
@@ -116,19 +119,22 @@ internal static class Opp
                 "The adapter is not powered on"
             );
 
-        if (_sessions.GetServerSession(out var session, out _) && session.IsMainServer)
-        {
-            return Errors.ErrorOperationInProgress.WrapError(
-                new()
-                {
-                    { "operation", "Object Push Server" },
-                    { "exception", "An Object Push server instance is in progress" },
-                }
-            );
-        }
-
         try
         {
+            if (
+                _sessions.GetServerSession(token, adapter.Address, out var session, out _)
+                && session.IsMainServer
+            )
+            {
+                return Errors.ErrorOperationInProgress.WrapError(
+                    new()
+                    {
+                        { "operation", "Object Push Server" },
+                        { "exception", "An Object Push server instance is in progress" },
+                    }
+                );
+            }
+
             var _server = new BluetoothOppServerSession(
                 token.LinkedCancelTokenSource,
                 destinationDirectory,
@@ -155,9 +161,7 @@ internal static class Opp
             );
             await _server.StartServerAsync();
 
-            var addr = BluetoothAddress.Parse(adapter.Address);
-
-            return _sessions.Start(addr, new ServerSession(true, addr, _server, token, null));
+            return _sessions.Start(token, adapter.Address, new ServerSession(true, _server, null));
         }
         catch (OperationCanceledException) { }
         catch (Exception e)
@@ -168,13 +172,13 @@ internal static class Opp
         return Errors.ErrorNone;
     }
 
-    internal static ErrorData StopFileTransferServer()
+    internal static ErrorData StopFileTransferServer(OperationToken token)
     {
         var (adapter, error) = AdapterModelExt.ConvertToAdapterModel();
         if (error != Errors.ErrorNone)
             return error;
 
-        return _sessions.Stop(BluetoothAddress.Parse(adapter.Address));
+        return _sessions.Stop(token, adapter.Address);
     }
 }
 
@@ -182,9 +186,14 @@ internal partial record class OppSessions : IDisposable
 {
     private readonly ConcurrentDictionary<BluetoothAddress, IOppSession> _sessions = [];
 
-    internal ErrorData Start(BluetoothAddress address, IOppSession session)
+    internal ErrorData Start(OperationToken token, string address, IOppSession session)
     {
-        if (!_sessions.TryAdd(address, session))
+        if (!GetBluetoothAddress(address, out var addr, out var error))
+        {
+            return error;
+        }
+
+        if (!_sessions.TryAdd(addr, session))
         {
             session.Dispose();
             return Errors.ErrorDeviceFileTransferSession.AddMetadata(
@@ -193,20 +202,32 @@ internal partial record class OppSessions : IDisposable
             );
         }
 
-        session.RemoveSession = () => _sessions.TryRemove(address, out _);
-        session.Sessions = () => this;
+        session.Address = addr;
+        session.Token = token;
+        session.Sessions = this;
 
         session.Start();
 
         return Errors.ErrorNone;
     }
 
-    internal ErrorData Stop(BluetoothAddress address)
+    internal ErrorData Stop(OperationToken token, string address)
     {
-        if (!_sessions.TryRemove(address, out var session))
+        if (!GetBluetoothAddress(address, out var addr, out var error))
+        {
+            return error;
+        }
+
+        if (!_sessions.TryGetValue(addr, out var session))
             return Errors.ErrorDeviceFileTransferSession.AddMetadata(
                 "exception",
                 "No session exists for Object Push"
+            );
+
+        if (session.Token.ClientId != token.ClientId)
+            return Errors.ErrorDeviceFileTransferSession.AddMetadata(
+                "exception",
+                "This transfer is controlled by another client"
             );
 
         session.Stop();
@@ -214,12 +235,23 @@ internal partial record class OppSessions : IDisposable
         return Errors.ErrorNone;
     }
 
-    internal ErrorData CancelTransfer(BluetoothAddress address)
+    internal ErrorData CancelTransfer(OperationToken token, string address)
     {
-        if (!_sessions.TryGetValue(address, out var session))
+        if (!GetBluetoothAddress(address, out var addr, out var error))
+        {
+            return error;
+        }
+
+        if (!_sessions.TryGetValue(addr, out var session))
             return Errors.ErrorDeviceFileTransferSession.AddMetadata(
                 "exception",
                 "No session exists for Object Push"
+            );
+
+        if (session.Token.ClientId != token.ClientId)
+            return Errors.ErrorDeviceFileTransferSession.AddMetadata(
+                "exception",
+                "This transfer is controlled by another client"
             );
 
         session.CancelTransfer();
@@ -227,16 +259,24 @@ internal partial record class OppSessions : IDisposable
         return Errors.ErrorNone;
     }
 
-    internal bool Exists(BluetoothAddress address) => _sessions.TryGetValue(address, out _);
-
-    internal bool GetClientSession(out ClientSession session, out ErrorData error)
+    internal bool GetClientSession(
+        OperationToken token,
+        string address,
+        out ClientSession session,
+        out ErrorData error
+    )
     {
         error = Errors.ErrorNone;
         session = null;
 
+        if (!GetBluetoothAddress(address, out var addr, out error))
+        {
+            return false;
+        }
+
         foreach (var (_, s) in _sessions)
         {
-            if (s.IsClient)
+            if (s.IsClient && s.Address == addr && s.Token.ClientId == token.ClientId)
             {
                 session = s.Client;
                 return true;
@@ -250,14 +290,24 @@ internal partial record class OppSessions : IDisposable
         return false;
     }
 
-    internal bool GetServerSession(out ServerSession session, out ErrorData error)
+    internal bool GetServerSession(
+        OperationToken token,
+        string address,
+        out ServerSession session,
+        out ErrorData error
+    )
     {
         error = Errors.ErrorNone;
         session = null;
 
+        if (!GetBluetoothAddress(address, out var addr, out error))
+        {
+            return false;
+        }
+
         foreach (var (_, s) in _sessions)
         {
-            if (s.IsServer)
+            if (s.IsServer && s.Address == addr && s.Token.ClientId == token.ClientId)
             {
                 session = s.Server;
                 return true;
@@ -269,6 +319,32 @@ internal partial record class OppSessions : IDisposable
             "No session exists for Object Push Server"
         );
         return false;
+    }
+
+    internal void RemoveSession(IOppSession session)
+    {
+        _sessions.TryRemove(session.Address, out _);
+    }
+
+    private static bool GetBluetoothAddress(
+        string address,
+        out BluetoothAddress addr,
+        out ErrorData error
+    )
+    {
+        addr = null;
+        error = Errors.ErrorNone;
+
+        try
+        {
+            addr = BluetoothAddress.Parse(address);
+        }
+        catch (Exception ex)
+        {
+            error = Errors.ErrorDeviceFileTransferSession.AddMetadata("exception", ex.Message);
+        }
+
+        return error == Errors.ErrorNone;
     }
 
     public void Dispose()
@@ -283,6 +359,9 @@ internal partial record class OppSessions : IDisposable
 
 internal interface IOppSession : IDisposable
 {
+    public BluetoothAddress Address { get; set; }
+    public OperationToken Token { get; set; }
+
     public ClientSession Client { get; }
     public bool IsClient
     {
@@ -295,8 +374,7 @@ internal interface IOppSession : IDisposable
         get => Server != null;
     }
 
-    public Action RemoveSession { get; set; }
-    public Func<OppSessions> Sessions { get; set; }
+    public OppSessions Sessions { get; set; }
 
     public void Start();
     public void Stop();
@@ -305,26 +383,24 @@ internal interface IOppSession : IDisposable
 
 internal partial record class ServerSession(
     bool IsMainServer,
-    BluetoothAddress Address,
     BluetoothOppServerSession Server,
-    OperationToken ServerToken,
     Action CancelFunc
 ) : IOppSession
 {
     ClientSession IOppSession.Client => null;
     ServerSession IOppSession.Server => this;
 
-    public Action RemoveSession { get; set; } = null;
-    public Func<OppSessions> Sessions { get; set; } = null;
+    public BluetoothAddress Address { get; set; }
+    public OperationToken Token { get; set; }
 
-    private ConcurrentDictionary<string, BluetoothAddress> _transfers = null;
+    public OppSessions Sessions { get; set; }
 
     public void Start()
     {
         if (!IsMainServer)
             return;
 
-        OperationManager.SetOperationProperties(ServerToken);
+        OperationManager.SetOperationProperties(Token);
 
         Server.ClientAccepted += (sender, args) =>
         {
@@ -359,7 +435,7 @@ internal partial record class ServerSession(
                         fileTransferEvent.Status = TransferStatus.Complete;
                 }
 
-                Output.Event(fileTransferEvent, ServerToken);
+                Output.Event(fileTransferEvent, Token);
             };
         };
         Server.ClientDisconnected += (sender, args) =>
@@ -374,14 +450,14 @@ internal partial record class ServerSession(
                         "exception",
                         args.ObexServerException.Message
                     ),
-                    ServerToken
+                    Token
                 );
             }
         };
 
         _ = Task.Run(() =>
         {
-            ServerToken.Wait();
+            Token.Wait();
             Stop();
         });
     }
@@ -402,48 +478,40 @@ internal partial record class ServerSession(
         if (IsMainServer)
         {
             Server.Dispose();
-            ServerToken.Release();
+            Token.Release();
         }
 
-        RemoveSession?.Invoke();
+        Sessions?.RemoveSession(this);
     }
 
     private void AddSubSession(string address, Action cancelFunc)
     {
-        _transfers ??= [];
-
-        if (_transfers.TryGetValue(address, out _))
-            return;
-
-        var addr = BluetoothAddress.Parse(address);
-        if (_transfers.TryAdd(address, addr))
-            Sessions().Start(addr, new ServerSession(false, addr, null, ServerToken, cancelFunc));
+        if (!Sessions.GetServerSession(Token, address, out _, out _))
+            Sessions.Start(Token, address, new ServerSession(false, null, cancelFunc));
     }
 
     private void RemoveSubSession(string address)
     {
-        var addr = BluetoothAddress.Parse(address);
-        if (_transfers?.TryRemove(address, out _) == true)
-            Sessions().Stop(addr);
+        if (Sessions.GetServerSession(Token, address, out var session, out _))
+            session.Stop();
     }
 }
 
-internal partial record class ClientSession(
-    BluetoothAddress Address,
-    BluetoothOppClientSession Client,
-    OperationToken ClientToken
-) : IOppSession
+internal partial record class ClientSession(BluetoothOppClientSession Client) : IOppSession
 {
     private BlockingCollection<string> _filequeue = [];
 
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
-    private readonly string AddressString = Address.ToString("C");
+    private string AddressString => Address.ToString("C");
 
     ClientSession IOppSession.Client => this;
     ServerSession IOppSession.Server => null;
 
-    public Action RemoveSession { get; set; } = null;
-    public Func<OppSessions> Sessions { get; set; } = null;
+    public BluetoothAddress Address { get; set; }
+    public OperationToken Token { get; set; }
+
+    public OppSessions Sessions { get; set; }
+
+    private readonly SemaphoreSlim _semaphore = new(1, 1);
 
     public void Start()
     {
@@ -471,16 +539,16 @@ internal partial record class ClientSession(
                 fileTransferEvent.Status = TransferStatus.Complete;
             }
 
-            Output.Event(fileTransferEvent, ClientToken);
+            Output.Event(fileTransferEvent, Token);
         };
 
-        OperationManager.SetOperationProperties(ClientToken, true, true);
+        OperationManager.SetOperationProperties(Token, true, true);
 
         _ = Task.Run(RunTask);
 
         async void RunTask()
         {
-            await FilesQueueProcessor(ClientToken.CancelTokenSource.Token);
+            await FilesQueueProcessor(Token.CancelTokenSource.Token);
             Client.ObexClient.TransferEventHandler = null;
 
             Stop();
@@ -510,7 +578,7 @@ internal partial record class ClientSession(
         }
         catch (Exception e)
         {
-            ClientToken.Release();
+            Token.Release();
             return Errors.ErrorDeviceFileTransferSession.AddMetadata("exception", e.Message);
         }
 
@@ -564,7 +632,7 @@ internal partial record class ClientSession(
                     return;
 
                 if (await SendFileAsync(filepath) is var error && error != Errors.ErrorNone)
-                    Output.Event(error, ClientToken);
+                    Output.Event(error, Token);
             }
         }
         catch { }
@@ -597,12 +665,12 @@ internal partial record class ClientSession(
 
         _filequeue?.CompleteAdding();
 
-        ClientToken.Release();
+        Token.Release();
 
         Client?.Dispose();
 
         _semaphore.Release();
 
-        RemoveSession?.Invoke();
+        Sessions?.RemoveSession(this);
     }
 }

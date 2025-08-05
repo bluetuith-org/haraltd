@@ -148,15 +148,22 @@ public sealed class MSFTStack : IBluetoothStack
         string destinationDirectory
     ) => Opp.StartFileTransferServerAsync(token, destinationDirectory);
 
-    public (FileTransferModel, ErrorData) QueueFileSend(string filepath) =>
-        Opp.QueueFileSend(filepath);
+    public (FileTransferModel, ErrorData) QueueFileSend(
+        OperationToken token,
+        string address,
+        string filepath
+    ) => Opp.QueueFileSend(token, address, filepath);
 
-    public Task<ErrorData> SendFileAsync(string filepath) => Opp.SendFileAsync(filepath);
+    public Task<ErrorData> SendFileAsync(OperationToken token, string address, string filepath) =>
+        Opp.SendFileAsync(token, address, filepath);
 
-    public ErrorData CancelFileTransfer(string address) => Opp.CancelFileTransfer(address);
+    public ErrorData CancelFileTransfer(OperationToken token, string address) =>
+        Opp.CancelFileTransfer(token, address);
 
-    public ErrorData StopFileTransferSession() => Opp.StopFileTransferSession();
+    public ErrorData StopFileTransferSession(OperationToken token, string address) =>
+        Opp.StopFileTransferSession(token, address);
 
-    public ErrorData StopFileTransferServer() => Opp.StopFileTransferServer();
+    public ErrorData StopFileTransferServer(OperationToken token) =>
+        Opp.StopFileTransferServer(token);
     #endregion
 }

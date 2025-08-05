@@ -82,15 +82,23 @@ public partial interface IBluetoothStack
 
     // Object Push profile (OPP) based operations
     public Task<ErrorData> StartFileTransferSessionAsync(OperationToken token, string address);
-    public (FileTransferModel, ErrorData) QueueFileSend(string filepath);
-    public Task<ErrorData> SendFileAsync(string filepath);
-    public ErrorData CancelFileTransfer(string address);
-    public ErrorData StopFileTransferSession();
+    public (FileTransferModel, ErrorData) QueueFileSend(
+        OperationToken token,
+        string address,
+        string filepath
+    );
+
+    public Task<ErrorData> SendFileAsync(OperationToken token, string address, string filepath);
+
+    public ErrorData CancelFileTransfer(OperationToken token, string address);
+
+    public ErrorData StopFileTransferSession(OperationToken token, string address);
 
     public Task<ErrorData> StartFileTransferServerAsync(
         OperationToken token,
         string destinationDirectory
     );
-    public ErrorData StopFileTransferServer();
+
+    public ErrorData StopFileTransferServer(OperationToken token);
     #endregion
 }
