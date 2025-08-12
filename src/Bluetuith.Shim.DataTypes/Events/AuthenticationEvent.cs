@@ -1,21 +1,13 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
-using static Bluetuith.Shim.DataTypes.IEvent;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Serializer;
+using static Bluetuith.Shim.DataTypes.Generic.IEvent;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Events;
 
-public record class AuthenticationEvent : IEvent
+public record AuthenticationEvent : IEvent
 {
-    private static long _authIdNum = 0;
-
-    [JsonConverter(typeof(JsonStringEnumConverter<AuthenticationReplyMethod>))]
-    public enum AuthenticationReplyMethod : byte
-    {
-        ReplyNone = 0,
-        ReplyYesNo,
-        ReplyWithInput,
-    }
-
     [JsonConverter(typeof(JsonStringEnumConverter<AuthenticationEventType>))]
     public enum AuthenticationEventType : byte
     {
@@ -25,46 +17,28 @@ public record class AuthenticationEvent : IEvent
         ConfirmPasskey,
         AuthorizePairing,
         AuthorizeService,
-        AuthorizeTransfer,
+        AuthorizeTransfer
     }
 
-    public class AuthenticationParameters
+    [JsonConverter(typeof(JsonStringEnumConverter<AuthenticationReplyMethod>))]
+    public enum AuthenticationReplyMethod : byte
     {
-        [JsonPropertyName("auth_id")]
-        public long AuthId { get; set; }
-
-        [JsonPropertyName("auth_event")]
-        public AuthenticationEventType AuthEvent { get; set; }
-
-        [JsonPropertyName("auth_reply_method")]
-        public AuthenticationReplyMethod AuthReplyMethod { get; set; }
-
-        [JsonPropertyName("timeout_ms")]
-        public int TimeoutMs { get; set; }
+        ReplyNone = 0,
+        ReplyYesNo,
+        ReplyWithInput
     }
 
-    public long CurrentAuthId { get; } = ++_authIdNum;
+    private static long _authIdNum;
+    public readonly OperationToken.OperationToken Token;
 
-    public AuthenticationReplyMethod ReplyMethod { get; }
-    public string TextToValidate { get; }
-    public int TimeoutMs { get; }
-    public readonly OperationToken Token;
-
-    private bool _response = false;
-    private bool _responseSet = false;
-
-    EventType IEvent.Event => EventTypes.EventAuthentication;
-    EventAction IEvent.Action
-    {
-        get => EventAction.Added;
-        set => throw new InvalidDataException();
-    }
+    private bool _response;
+    private bool _responseSet;
 
     public AuthenticationEvent(
         string textToValidate,
         int timeoutMs,
         AuthenticationReplyMethod replyMethod,
-        OperationToken token
+        OperationToken.OperationToken token
     )
     {
         ReplyMethod = replyMethod;
@@ -76,9 +50,34 @@ public record class AuthenticationEvent : IEvent
     public AuthenticationEvent(
         int timeout,
         AuthenticationReplyMethod replyMethod,
-        OperationToken token
+        OperationToken.OperationToken token
     )
-        : this("", timeout, replyMethod, token) { }
+        : this("", timeout, replyMethod, token)
+    {
+    }
+
+    public long CurrentAuthId { get; } = ++_authIdNum;
+
+    public AuthenticationReplyMethod ReplyMethod { get; }
+    public string TextToValidate { get; }
+    public int TimeoutMs { get; }
+
+    EventType IEvent.Event => EventTypes.EventAuthentication;
+
+    EventAction IEvent.Action
+    {
+        get => EventAction.Added;
+        set => throw new InvalidDataException();
+    }
+
+    public virtual string ToConsoleString()
+    {
+        return "";
+    }
+
+    public virtual void WriteJsonToStream(Utf8JsonWriter writer)
+    {
+    }
 
     public bool WaitForResponse()
     {
@@ -128,62 +127,63 @@ public record class AuthenticationEvent : IEvent
         return SetResponse();
     }
 
-    public virtual string ToConsoleString() => "";
+    public class AuthenticationParameters
+    {
+        [JsonPropertyName("auth_id")] public long AuthId { get; set; }
 
-    public virtual void WriteJsonToStream(Utf8JsonWriter writer) { }
+        [JsonPropertyName("auth_event")] public AuthenticationEventType AuthEvent { get; set; }
+
+        [JsonPropertyName("auth_reply_method")]
+        public AuthenticationReplyMethod AuthReplyMethod { get; set; }
+
+        [JsonPropertyName("timeout_ms")] public int TimeoutMs { get; set; }
+    }
 }
 
-public record class PairingAuthenticationEvent : AuthenticationEvent
+public record PairingAuthenticationEvent : AuthenticationEvent
 {
-    public class PairingParameters : AuthenticationParameters
-    {
-        [JsonPropertyName("address")]
-        public string Address { get; set; }
-
-        [JsonPropertyName("pincode")]
-        public string Pincode { get; set; }
-
-        [JsonPropertyName("passkey")]
-        public uint Passkey { get; set; }
-    }
-
-    protected readonly string _address;
+    protected readonly string Address;
 
     public PairingAuthenticationEvent(
         string address,
         string pin,
         int timeout,
         AuthenticationReplyMethod pairingKind,
-        OperationToken token
+        OperationToken.OperationToken token
     )
         : base(pin, timeout, pairingKind, token)
     {
-        _address = address;
+        Address = address;
+    }
+
+    public class PairingParameters : AuthenticationParameters
+    {
+        [JsonPropertyName("address")] public string Address { get; set; }
+
+        [JsonPropertyName("pincode")] public string Pincode { get; set; }
+
+        [JsonPropertyName("passkey")] public uint Passkey { get; set; }
     }
 }
 
-public record class OppAuthenticationEvent : AuthenticationEvent
+public record OppAuthenticationEvent : AuthenticationEvent
 {
     private readonly IFileTransferEvent _fileTransferEvent;
-
-    public class OppParameters : AuthenticationParameters
-    {
-        [JsonPropertyName("file_transfer")]
-        public IFileTransferEvent TransferEvent { get; set; }
-    }
 
     public OppAuthenticationEvent(
         int timeout,
         IFileTransferEvent fileTransferEvent,
-        OperationToken token
+        OperationToken.OperationToken token
     )
         : base(timeout, AuthenticationReplyMethod.ReplyYesNo, token)
     {
         _fileTransferEvent = fileTransferEvent;
     }
 
-    public override string ToConsoleString() =>
-        $"Accept file {_fileTransferEvent.Name} from address {_fileTransferEvent.Address} (y/n)";
+    public override string ToConsoleString()
+    {
+        return $"Accept file {_fileTransferEvent.Name} from address {_fileTransferEvent.Address} (y/n)";
+    }
 
     public override void WriteJsonToStream(Utf8JsonWriter writer)
     {
@@ -193,10 +193,15 @@ public record class OppAuthenticationEvent : AuthenticationEvent
             AuthEvent = AuthenticationEventType.AuthorizeTransfer,
             AuthReplyMethod = AuthenticationReplyMethod.ReplyYesNo,
             TransferEvent = _fileTransferEvent,
-            TimeoutMs = TimeoutMs,
+            TimeoutMs = TimeoutMs
         };
 
         writer.WritePropertyName(SerializableContext.TransferAuthEventPropertyName);
         parameters.SerializeAll(writer);
+    }
+
+    public class OppParameters : AuthenticationParameters
+    {
+        [JsonPropertyName("file_transfer")] public IFileTransferEvent TransferEvent { get; set; }
     }
 }

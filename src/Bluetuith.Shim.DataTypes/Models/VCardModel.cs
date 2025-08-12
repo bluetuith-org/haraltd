@@ -1,26 +1,24 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Serializer;
 using MixERP.Net.VCards;
-using MixERP.Net.VCards.Models;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Models;
 
 public interface IVcard
 {
-    [JsonPropertyName("vcard_type")]
-    string VCardType { get; }
+    [JsonPropertyName("vcard_type")] string VCardType { get; }
 
-    [JsonPropertyName("vcard_data")]
-    string VCards { get; }
+    [JsonPropertyName("vcard_data")] string VCards { get; }
 }
 
-public record class VcardModel : IResult, IVcard
+public record VcardModel : IResult, IVcard
 {
-    public string VCardType { get; } = "";
-    public string VCards { get; } = "";
-
-    public VcardModel() { }
+    public VcardModel()
+    {
+    }
 
     public VcardModel(string vcardType, string vcards)
     {
@@ -35,7 +33,7 @@ public record class VcardModel : IResult, IVcard
         stringBuilder.AppendLine($" = {VCardType} = ");
 
 #nullable enable
-        foreach (VCard? card in Deserializer.GetVCards(VCards))
+        foreach (var card in Deserializer.GetVCards(VCards))
         {
             if (card == null)
                 continue;
@@ -43,15 +41,13 @@ public record class VcardModel : IResult, IVcard
             stringBuilder.AppendLine($"# {card.FormattedName}:");
             stringBuilder.AppendLine("Telephones:");
             if (card.Telephones != null)
-            {
-                foreach (Telephone? telephone in card.Telephones)
+                foreach (var telephone in card.Telephones)
                 {
                     if (telephone == null)
                         continue;
 
                     stringBuilder.AppendLine($"{telephone.Number}");
                 }
-            }
 
             stringBuilder.AppendLine("");
         }
@@ -65,4 +61,7 @@ public record class VcardModel : IResult, IVcard
         writer.WritePropertyName(SerializableContext.VcardPropertyName);
         (this as IVcard).SerializeSelected(writer);
     }
+
+    public string VCardType { get; } = "";
+    public string VCards { get; } = "";
 }

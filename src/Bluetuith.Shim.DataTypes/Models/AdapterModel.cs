@@ -1,9 +1,12 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Serializer;
 using InTheHand.Net.Bluetooth;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Models;
 
 public interface IAdapter : IAdapterEvent
 {
@@ -21,39 +24,35 @@ public interface IAdapter : IAdapterEvent
 
     [JsonPropertyName("uuids")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Guid[] UUIDs { get; set; }
+    public Guid[] UuiDs { get; set; }
 }
 
-public abstract record class AdapterBaseModel : AdapterEventBaseModel, IAdapter
+public abstract record AdapterBaseModel : AdapterEventBaseModel, IAdapter
 {
     public string Name { get; set; } = "";
     public string Alias { get; set; } = "";
     public string UniqueName { get; set; } = "";
-    public Guid[] UUIDs { get; set; }
+    public Guid[] UuiDs { get; set; }
 
     protected void PrintProperties(ref StringBuilder stringBuilder)
     {
         stringBuilder.AppendLine($"Name: {Name}");
-        if (UUIDs != null && UUIDs.Length > 0)
+        if (UuiDs is { Length: > 0 })
         {
             stringBuilder.AppendLine("Profiles:");
-            foreach (Guid uuid in UUIDs)
+            foreach (var uuid in UuiDs)
             {
                 var serviceName = BluetoothService.GetName(uuid);
                 if (string.IsNullOrEmpty(serviceName))
-                {
                     serviceName = "Unknown";
-                }
                 stringBuilder.AppendLine($"{serviceName} = {uuid}");
             }
         }
     }
 }
 
-public record class AdapterModel : AdapterBaseModel, IResult
+public record AdapterModel : AdapterBaseModel, IResult
 {
-    public AdapterModel() { }
-
     public string ToConsoleString()
     {
         StringBuilder stringBuilder = new();
@@ -80,25 +79,21 @@ public static class AdapterModelExtensions
     )
     {
         return new GenericResult<List<AdapterModel>>(
-            consoleFunc: () =>
+            () =>
             {
                 StringBuilder stringBuilder = new();
 
                 stringBuilder.AppendLine(consoleObject);
-                foreach (AdapterModel adapter in adapters)
-                {
+                foreach (var adapter in adapters)
                     stringBuilder.AppendLine(adapter.ToConsoleString());
-                }
 
                 return stringBuilder.ToString();
             },
-            jsonNodeFunc: (writer) =>
+            writer =>
             {
                 writer.WriteStartArray(jsonObject);
-                foreach (AdapterModel adapter in adapters)
-                {
+                foreach (var adapter in adapters)
                     (adapter as IAdapter).SerializeAll(writer);
-                }
                 writer.WriteEndArray();
             }
         );

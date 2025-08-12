@@ -1,9 +1,13 @@
-﻿using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Models;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Stack.Microsoft.Monitors;
+using Bluetuith.Shim.Stack.Microsoft.Windows;
 using InTheHand.Net;
 using Nefarius.Utilities.Bluetooth;
 using Nefarius.Utilities.DeviceManagement.PnP;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Adapters;
 
 internal static class WindowsAdapterExtensions
 {
@@ -22,8 +26,8 @@ internal static class WindowsAdapterExtensions
     public static void MergeWatcherData<T>(
         this T adapter,
         ulong address,
-        Nullable<bool> powered,
-        Nullable<bool> discoverable
+        bool? powered,
+        bool? discoverable
     )
         where T : notnull, IAdapter
     {
@@ -41,11 +45,11 @@ internal static class WindowsAdapterExtensions
     {
         try
         {
-            if (Devcon.FindByInterfaceGuid(HostRadio.DeviceInterface, out PnPDevice device))
+            if (Devcon.FindByInterfaceGuid(HostRadio.DeviceInterface, out var device))
             {
                 adapter.Address = (
                     (BluetoothAddress)
-                        device.GetProperty<ulong>(WindowsPnPInformation.Adapter.Address)
+                    device.GetProperty<ulong>(WindowsPnPInformation.Adapter.Address)
                 ).ToString("C");
 
                 adapter.OptionPowered = adapter.OptionPairable = HostRadio.IsOperable;
@@ -58,9 +62,9 @@ internal static class WindowsAdapterExtensions
                 {
                     adapter.Name =
                         adapter.Alias =
-                        adapter.UniqueName =
-                            device.GetProperty<string>(DevicePropertyKey.NAME);
-                    adapter.UUIDs = AdapterMethods.GetAdapterServices();
+                            adapter.UniqueName =
+                                device.GetProperty<string>(DevicePropertyKey.NAME);
+                    adapter.UuiDs = AdapterMethods.GetAdapterServices();
                 }
             }
             else

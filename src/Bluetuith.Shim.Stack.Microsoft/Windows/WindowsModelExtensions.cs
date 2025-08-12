@@ -1,8 +1,9 @@
-﻿using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.Models;
 using GoodTimeStudio.MyPhone.OBEX;
 using GoodTimeStudio.MyPhone.OBEX.Map;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Windows;
 
 internal static class WindowsModelExtensions
 {
@@ -22,7 +23,7 @@ internal static class WindowsModelExtensions
 
     internal static BMessageItem ToBMessageItem(this BMessage bMessage)
     {
-        return new BMessageItem()
+        return new BMessageItem
         {
             Status = bMessage.Status.ToString(),
             Body = bMessage.Body,
@@ -30,7 +31,7 @@ internal static class WindowsModelExtensions
             Folder = bMessage.Folder,
             Length = bMessage.Length,
             Sender = bMessage.Sender.Title,
-            Type = bMessage.Type,
+            Type = bMessage.Type
         };
     }
 
@@ -39,13 +40,13 @@ internal static class WindowsModelExtensions
         string address
     )
     {
-        return new MessageReceivedEvent()
+        return new MessageReceivedEvent
         {
             Address = address,
             Folder = args.Folder,
             Handle = args.MessageHandle,
             MessageEventType = args.EventType,
-            MessageType = args.MessageType,
+            MessageType = args.MessageType
         };
     }
 
@@ -60,7 +61,7 @@ internal static class WindowsModelExtensions
 
     internal static MessageItem ToMessageItem(this MessageListing message)
     {
-        return new MessageItem()
+        return new MessageItem
         {
             AttachmentSize = message.AttachmentSize,
             RecipientAddressing = message.RecipientAddressing,
@@ -68,7 +69,7 @@ internal static class WindowsModelExtensions
             Handle = message.Handle,
             ReceptionStatus = message.ReceptionStatus,
             Size = message.Size,
-            Subject = message.Subject,
+            Subject = message.Subject
         };
     }
 }

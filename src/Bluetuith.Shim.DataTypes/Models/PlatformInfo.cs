@@ -1,15 +1,15 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Serializer;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Models;
 
 public struct PlatformInfo : IResult
 {
-    [JsonPropertyName("stack")]
-    public string Stack { get; set; }
+    [JsonPropertyName("stack")] public string Stack { get; set; }
 
-    [JsonPropertyName("os_info")]
-    public string OsInfo { get; set; }
+    [JsonPropertyName("os_info")] public string OsInfo { get; set; }
 
     public readonly string ToConsoleString()
     {

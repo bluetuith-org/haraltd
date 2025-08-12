@@ -1,17 +1,15 @@
-﻿using Bluetuith.Shim.DataTypes;
-using static Bluetuith.Shim.Operations.AuthenticationManager;
+﻿using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using static Bluetuith.Shim.Operations.Managers.AuthenticationManager;
 
-namespace Bluetuith.Shim.Operations;
+namespace Bluetuith.Shim.Operations.OutputStream;
 
 public static class Output
 {
     private static OutputBase _output = new CommandOutput();
 
-    private static bool _isOnSocket;
-    public static bool IsOnSocket
-    {
-        get => _isOnSocket;
-    }
+    public static bool IsOnSocket { get; private set; }
 
     public static event Action<string> OnStarted;
 
@@ -20,14 +18,16 @@ public static class Output
         try
         {
             _output = new SocketOutput(socketPath, token);
-            _isOnSocket = true;
+            IsOnSocket = true;
 
             OnStarted?.Invoke(socketPath);
             _output.WaitForClose();
         }
         catch (Exception e)
         {
-            return Errors.ErrorOperationCancelled.WrapError(new() { { "exception", e.Message } });
+            return Errors.ErrorOperationCancelled.WrapError(
+                new Dictionary<string, object> { { "exception", e.Message } }
+            );
         }
 
         return Errors.ErrorNone;
@@ -37,9 +37,7 @@ public static class Output
         where T : IResult
     {
         if (error != Errors.ErrorNone)
-        {
             return Error(error, token);
-        }
 
         IResult outputResult = result;
         return _output.EmitResult(outputResult, token);
@@ -98,14 +96,18 @@ internal abstract class OutputBase
     }
 
     internal virtual void EmitEvent<T>(T ev, OperationToken token, bool clientOnly = false)
-        where T : IEvent { }
+        where T : IEvent
+    {
+    }
 
     internal virtual void EmitAuthenticationRequest<T>(
         T authEvent,
         OperationToken token,
         AuthAgentType authAgentType = AuthAgentType.None
     )
-        where T : AuthenticationEvent { }
+        where T : AuthenticationEvent
+    {
+    }
 
     internal virtual bool SetAuthenticationResponse(
         OperationToken token,
@@ -116,5 +118,7 @@ internal abstract class OutputBase
         return true;
     }
 
-    internal virtual void WaitForClose() { }
+    internal virtual void WaitForClose()
+    {
+    }
 }

@@ -1,7 +1,8 @@
 ﻿using System.Text.Json;
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
 
-namespace Bluetuith.Shim.Operations;
+namespace Bluetuith.Shim.Operations.OutputStream;
 
 internal interface IMarshaller
 {
@@ -14,9 +15,11 @@ internal readonly ref struct ResultMarshaller<T>(T result, bool hasData, bool is
     private static readonly JsonEncodedText StatusText = JsonEncodedText.Encode("status");
     private static readonly JsonEncodedText StatusErrorText = JsonEncodedText.Encode("error");
     private static readonly JsonEncodedText StatusOkText = JsonEncodedText.Encode("ok");
+
     private static readonly JsonEncodedText OperationIdText = JsonEncodedText.Encode(
         "operation_id"
     );
+
     private static readonly JsonEncodedText RequestIdText = JsonEncodedText.Encode("request_id");
     private static readonly JsonEncodedText DataText = JsonEncodedText.Encode("data");
 
@@ -50,9 +53,11 @@ internal readonly ref struct EventMarshaller<T>(T eventData) : IMarshaller
     where T : IEvent
 {
     private static readonly JsonEncodedText EventIdText = JsonEncodedText.Encode("event_id");
+
     private static readonly JsonEncodedText EventActionText = JsonEncodedText.Encode(
         "event_action"
     );
+
     private static readonly JsonEncodedText EventText = JsonEncodedText.Encode("event");
 
     void IMarshaller.Write(OperationToken token, Utf8JsonWriter writer)

@@ -1,7 +1,9 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.Models;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Serializer;
 
 internal class KebabCaseEnumConverter<TEnum>()
     : JsonStringEnumConverter<TEnum>(JsonNamingPolicy.KebabCaseLower)
@@ -32,10 +34,11 @@ internal class KebabCaseEnumConverter<TEnum>()
 [JsonSourceGenerationOptions(
     GenerationMode = JsonSourceGenerationMode.Metadata,
     UseStringEnumConverter = true,
-    Converters = [
+    Converters =
+    [
         typeof(KebabCaseEnumConverter<IFileTransferEvent.TransferStatus>),
         typeof(KebabCaseEnumConverter<AuthenticationEvent.AuthenticationEventType>),
-        typeof(KebabCaseEnumConverter<AuthenticationEvent.AuthenticationReplyMethod>),
+        typeof(KebabCaseEnumConverter<AuthenticationEvent.AuthenticationReplyMethod>)
     ]
 )]
 public partial class SerializableContext : JsonSerializerContext
@@ -57,6 +60,7 @@ public partial class SerializableContext : JsonSerializerContext
     public static readonly JsonEncodedText FileTransferPropertyName = JsonEncodedText.Encode(
         "file_transfer"
     );
+
     public static readonly JsonEncodedText MessageListPropertyName = JsonEncodedText.Encode(
         "message_list"
     );
@@ -78,6 +82,7 @@ public partial class SerializableContext : JsonSerializerContext
     public static readonly JsonEncodedText DeviceEventPropertyName = JsonEncodedText.Encode(
         "device_event"
     );
+
     public static readonly JsonEncodedText FileTransferEventPropertyName = JsonEncodedText.Encode(
         "file_transfer_event"
     );

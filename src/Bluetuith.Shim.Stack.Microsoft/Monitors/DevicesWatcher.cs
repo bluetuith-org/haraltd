@@ -1,52 +1,23 @@
 ﻿using System.Collections.Concurrent;
-using Bluetuith.Shim.DataTypes;
+using System.Timers;
+using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Stack.Microsoft.Devices;
 using DotNext.Threading;
 using Windows.Devices.Enumeration;
-using static Bluetuith.Shim.DataTypes.IEvent;
+using static Bluetuith.Shim.DataTypes.Generic.IEvent;
 using Timer = System.Timers.Timer;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Monitors;
 
 internal partial class DevicesWatcher : IWatcher
 {
-    private readonly Dictionary<string, DeviceChanges> devices = [];
-    private readonly ConcurrentDictionary<long, Subscriber> subscribers = [];
-
-    private readonly DeviceWatcher _watcher;
-    private readonly ManualResetEvent mre = new(true);
     private readonly Timer _stopTimer;
 
-    internal IEnumerable<DeviceChanges> CurrentDevices
-    {
-        get
-        {
-            List<DeviceChanges> changes = [];
-
-            using (devices.AcquireReadLock())
-            {
-                foreach (var device in devices.Values)
-                    changes.Add(device with { });
-            }
-
-            return changes;
-        }
-    }
-
-    public bool IsCreated
-    {
-        get => _watcher != null;
-    }
-
-    public bool IsRunning
-    {
-        get =>
-            _watcher != null
-            && (
-                _watcher.Status == DeviceWatcherStatus.Started
-                || _watcher.Status == DeviceWatcherStatus.EnumerationCompleted
-                || _watcher.Status == DeviceWatcherStatus.Created
-            );
-    }
+    private readonly DeviceWatcher _watcher;
+    private readonly Dictionary<string, DeviceChanges> _devices = [];
+    private readonly ManualResetEvent _mre = new(true);
+    private readonly ConcurrentDictionary<long, Subscriber> _subscribers = [];
 
     internal DevicesWatcher(string aqs)
     {
@@ -76,43 +47,41 @@ internal partial class DevicesWatcher : IWatcher
                 "System.Devices.Aep.Bluetooth.Cod.Services.ObjectXfer",
                 "System.Devices.Aep.Bluetooth.Cod.Services.Positioning",
                 "System.Devices.Aep.Bluetooth.Cod.Services.Rendering",
-                "System.Devices.Aep.Bluetooth.Cod.Services.Telephony",
+                "System.Devices.Aep.Bluetooth.Cod.Services.Telephony"
             },
             DeviceInformationKind.AssociationEndpointContainer
         );
     }
 
-    private void StopTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+    internal IEnumerable<DeviceChanges> CurrentDevices
     {
-        if (
-            _watcher.Status != DeviceWatcherStatus.Started
-            && _watcher.Status != DeviceWatcherStatus.EnumerationCompleted
-        )
-            return;
+        get
+        {
+            List<DeviceChanges> changes = [];
 
-        mre.Reset();
+            using (_devices.AcquireReadLock())
+            {
+                foreach (var device in _devices.Values)
+                    changes.Add(device with { });
+            }
 
-        _watcher.Stop();
+            return changes;
+        }
     }
 
-    private void Watcher_Stopped(DeviceWatcher sender, object args)
-    {
-        ClearDevices();
-        mre.Set();
-    }
+    public bool IsCreated => _watcher != null;
 
-    private void Watcher_Removed(DeviceWatcher sender, DeviceInformationUpdate args) =>
-        RemoveDeviceInformation(args);
-
-    private void Watcher_Updated(DeviceWatcher sender, DeviceInformationUpdate args) =>
-        UpdateDeviceInformation(args);
-
-    private void Watcher_Added(DeviceWatcher sender, DeviceInformation args) =>
-        AddDeviceInformation(args);
+    public bool IsRunning =>
+        _watcher != null
+        && (
+            _watcher.Status == DeviceWatcherStatus.Started
+            || _watcher.Status == DeviceWatcherStatus.EnumerationCompleted
+            || _watcher.Status == DeviceWatcherStatus.Created
+        );
 
     public bool Start()
     {
-        if (!mre.WaitOne(TimeSpan.FromSeconds(1)))
+        if (!_mre.WaitOne(TimeSpan.FromSeconds(1)))
             return false;
 
         _stopTimer.Stop();
@@ -145,12 +114,6 @@ internal partial class DevicesWatcher : IWatcher
         _stopTimer.Start();
     }
 
-    internal void ClearDevices()
-    {
-        using (devices.AcquireWriteLock())
-            devices.Clear();
-    }
-
     public void Dispose()
     {
         try
@@ -158,7 +121,9 @@ internal partial class DevicesWatcher : IWatcher
             _watcher.Stop();
             _stopTimer.Stop();
         }
-        catch { }
+        catch
+        {
+        }
         finally
         {
             _stopTimer.Elapsed -= StopTimer_Elapsed;
@@ -170,12 +135,56 @@ internal partial class DevicesWatcher : IWatcher
         }
     }
 
+    private void StopTimer_Elapsed(object sender, ElapsedEventArgs e)
+    {
+        if (
+            _watcher.Status != DeviceWatcherStatus.Started
+            && _watcher.Status != DeviceWatcherStatus.EnumerationCompleted
+        )
+            return;
+
+        _mre.Reset();
+
+        _watcher.Stop();
+    }
+
+    private void Watcher_Stopped(DeviceWatcher sender, object args)
+    {
+        ClearDevices();
+        _mre.Set();
+    }
+
+    private void Watcher_Removed(DeviceWatcher sender, DeviceInformationUpdate args)
+    {
+        RemoveDeviceInformation(args);
+    }
+
+    private void Watcher_Updated(DeviceWatcher sender, DeviceInformationUpdate args)
+    {
+        UpdateDeviceInformation(args);
+    }
+
+    private void Watcher_Added(DeviceWatcher sender, DeviceInformation args)
+    {
+        AddDeviceInformation(args);
+    }
+
+    internal void ClearDevices()
+    {
+        using (_devices.AcquireWriteLock())
+        {
+            _devices.Clear();
+        }
+    }
+
     internal void AddDeviceInformation(DeviceInformation deviceInformation)
     {
         var changes = new DeviceChanges(deviceInformation);
 
-        using (devices.AcquireWriteLock())
-            devices[deviceInformation.Id] = changes with { };
+        using (_devices.AcquireWriteLock())
+        {
+            _devices[deviceInformation.Id] = changes with { };
+        }
 
         PushEvents(EventAction.Added, changes, null);
     }
@@ -185,9 +194,9 @@ internal partial class DevicesWatcher : IWatcher
         DeviceChanges oldChanges = null,
             newChanges = null;
 
-        using (devices.AcquireWriteLock())
+        using (_devices.AcquireWriteLock())
         {
-            if (devices.TryGetValue(deviceInformationUpdate.Id, out var device))
+            if (_devices.TryGetValue(deviceInformationUpdate.Id, out var device))
             {
                 oldChanges = device with { Action = EventAction.Added };
 
@@ -202,10 +211,15 @@ internal partial class DevicesWatcher : IWatcher
 
     internal void RemoveDeviceInformation(DeviceInformationUpdate deviceInformationUpdate)
     {
-        DeviceChanges currentInfo = null;
+        DeviceChanges currentInfo;
 
-        using (devices.AcquireWriteLock())
-            devices.Remove(deviceInformationUpdate.Id, out currentInfo);
+        using (_devices.AcquireWriteLock())
+        {
+            _devices.Remove(deviceInformationUpdate.Id, out currentInfo);
+        }
+
+        if (currentInfo == null)
+            return;
 
         currentInfo.Action = EventAction.Removed;
 
@@ -218,11 +232,10 @@ internal partial class DevicesWatcher : IWatcher
         DeviceChanges newChanges
     )
     {
-        if (oldChanges == null || eventAction == EventAction.Updated && newChanges == null)
+        if (oldChanges == null || (eventAction == EventAction.Updated && newChanges == null))
             return;
 
-        foreach (var subscriber in subscribers.Values)
-        {
+        foreach (var subscriber in _subscribers.Values)
             switch (eventAction)
             {
                 case EventAction.Added:
@@ -235,33 +248,25 @@ internal partial class DevicesWatcher : IWatcher
                     subscriber.OnRemoved(oldChanges, subscriber.Token);
                     break;
             }
-        }
     }
 
     internal void RegisterSubscriber(Subscriber subscriber)
     {
-        subscribers.TryAdd(subscriber.Id, subscriber);
+        _subscribers.TryAdd(subscriber.Id, subscriber);
     }
 
     internal void UnregisterSubscriber(Subscriber subscriber)
     {
-        subscribers.TryRemove(subscriber.Id, out _);
+        _subscribers.TryRemove(subscriber.Id, out _);
     }
 
     internal partial class Subscriber : IDisposable
     {
+        private readonly DevicesWatcher _monitor;
         internal Action<DeviceChanges, OperationToken> OnAdded = static delegate { };
         internal Action<DeviceChanges, OperationToken> OnRemoved = static delegate { };
-        internal Action<DeviceChanges, DeviceChanges, OperationToken> OnUpdated = static delegate
-        { };
 
-        private readonly DevicesWatcher _monitor;
-
-        internal long Id
-        {
-            get => Token.OperationId;
-        }
-        internal OperationToken Token { get; private set; }
+        internal Action<DeviceChanges, DeviceChanges, OperationToken> OnUpdated = static delegate { };
 
         internal Subscriber(DevicesWatcher monitor, OperationToken token)
         {
@@ -271,13 +276,16 @@ internal partial class DevicesWatcher : IWatcher
             _monitor?.RegisterSubscriber(this);
         }
 
+        internal long Id => Token.OperationId;
+        internal OperationToken Token { get; }
+
         public void Dispose()
         {
             _monitor?.UnregisterSubscriber(this);
         }
     }
 
-    internal partial record class DeviceChanges : DeviceEvent
+    internal record DeviceChanges : DeviceEvent
     {
         private readonly DeviceInformation _deviceInformation;
 

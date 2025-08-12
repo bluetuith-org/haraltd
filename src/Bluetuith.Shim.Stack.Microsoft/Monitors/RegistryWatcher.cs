@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using WmiLight;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Monitors;
 
 internal sealed partial class RegistryWatcher : IWatcher
 {
@@ -10,11 +10,6 @@ internal sealed partial class RegistryWatcher : IWatcher
     private readonly WmiEventWatcher _eventWatcher;
 
     private readonly EventHandler<WmiEventArrivedEventArgs> _onChange;
-
-    private bool _started = false;
-
-    public bool IsRunning => _started;
-    public bool IsCreated => _connection != null && _eventWatcher != null;
 
     internal RegistryWatcher(
         string hive,
@@ -52,6 +47,7 @@ internal sealed partial class RegistryWatcher : IWatcher
             sb.Append($@"ValueName = '{valueName}'");
             count++;
         }
+
         sb.Append(')');
 
         _connection = new WmiConnection();
@@ -59,21 +55,25 @@ internal sealed partial class RegistryWatcher : IWatcher
         _onChange = onChange;
     }
 
+    public bool IsRunning { get; private set; }
+
+    public bool IsCreated => _connection != null && _eventWatcher != null;
+
     public bool Start()
     {
         _eventWatcher.EventArrived += _onChange;
         _eventWatcher.Start();
-        _started = true;
+        IsRunning = true;
 
         return true;
     }
 
     public void Stop()
     {
-        if (!_started)
+        if (!IsRunning)
             return;
 
-        _started = false;
+        IsRunning = false;
 
         _eventWatcher.EventArrived -= _onChange;
         _eventWatcher.Stop();
@@ -84,12 +84,14 @@ internal sealed partial class RegistryWatcher : IWatcher
     {
         try
         {
-            _started = false;
+            IsRunning = false;
 
             _eventWatcher.EventArrived -= _onChange;
             _eventWatcher?.Dispose();
             _connection?.Dispose();
         }
-        catch { }
+        catch
+        {
+        }
     }
 }

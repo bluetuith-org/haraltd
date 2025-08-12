@@ -1,7 +1,8 @@
-﻿using Bluetuith.Shim.DataTypes;
-using static Bluetuith.Shim.Operations.AuthenticationManager;
+﻿using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Operations.Managers;
 
-namespace Bluetuith.Shim.Operations;
+namespace Bluetuith.Shim.Operations.OutputStream;
 
 internal sealed class CommandOutput : OutputBase
 {
@@ -25,29 +26,26 @@ internal sealed class CommandOutput : OutputBase
     internal override void EmitAuthenticationRequest<T>(
         T authEvent,
         OperationToken token,
-        AuthAgentType authAgentType = AuthAgentType.None
+        AuthenticationManager.AuthAgentType authAgentType = AuthenticationManager.AuthAgentType.None
     )
     {
         if (Readline.TryReadInput(authEvent.ToConsoleString(), authEvent.TimeoutMs, out var input))
-        {
             authEvent.TryAccept(input.Trim());
-        }
     }
 }
 
 internal static class Readline
 {
-    private static readonly AutoResetEvent _readHandle = new(false);
-    private static readonly AutoResetEvent _waitHandle = new(false);
-    private static readonly Thread _inputThread;
-    private static string _input = "";
+    private static readonly AutoResetEvent ReadHandle = new(false);
+    private static readonly AutoResetEvent WaitHandle = new(false);
+    private static string _input;
 
     static Readline()
     {
         _input = "";
 
-        _inputThread = new Thread(reader) { IsBackground = true };
-        _inputThread.Start();
+        var inputThread = new Thread(Reader) { IsBackground = true };
+        inputThread.Start();
     }
 
     internal static bool TryReadInput(string prompt, int timeout, out string input)
@@ -55,8 +53,8 @@ internal static class Readline
         Console.Write(prompt + " ");
         input = "";
 
-        _readHandle.Set();
-        if (_waitHandle.WaitOne(timeout))
+        ReadHandle.Set();
+        if (WaitHandle.WaitOne(timeout))
         {
             input = _input;
             return true;
@@ -65,13 +63,13 @@ internal static class Readline
         return false;
     }
 
-    private static void reader()
+    private static void Reader()
     {
         while (true)
         {
-            _readHandle.WaitOne();
+            ReadHandle.WaitOne();
             _input = Console.ReadLine() ?? "";
-            _waitHandle.Set();
+            WaitHandle.Set();
         }
     }
 }

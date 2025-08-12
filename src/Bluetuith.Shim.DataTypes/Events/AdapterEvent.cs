@@ -1,41 +1,43 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using static Bluetuith.Shim.DataTypes.IEvent;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Models;
+using Bluetuith.Shim.DataTypes.Serializer;
+using static Bluetuith.Shim.DataTypes.Generic.IEvent;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Events;
 
 public interface IAdapterEvent
 {
-    [JsonPropertyName("address")]
-    public string Address { get; set; }
+    [JsonPropertyName("address")] public string Address { get; set; }
 
     [JsonPropertyName("powered")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Nullable<bool> OptionPowered { get; set; }
+    public bool? OptionPowered { get; set; }
 
     [JsonPropertyName("discoverable")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Nullable<bool> OptionDiscoverable { get; set; }
+    public bool? OptionDiscoverable { get; set; }
 
     [JsonPropertyName("pairable")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Nullable<bool> OptionPairable { get; set; }
+    public bool? OptionPairable { get; set; }
 
     [JsonPropertyName("discovering")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Nullable<bool> OptionDiscovering { get; set; }
+    public bool? OptionDiscovering { get; set; }
 
     public void PrintEventProperties(ref StringBuilder stringBuilder);
 }
 
-public abstract record class AdapterEventBaseModel : IAdapterEvent
+public abstract record AdapterEventBaseModel : IAdapterEvent
 {
     public string Address { get; set; } = "";
-    public Nullable<bool> OptionPowered { get; set; }
-    public Nullable<bool> OptionDiscoverable { get; set; }
-    public Nullable<bool> OptionPairable { get; set; }
-    public Nullable<bool> OptionDiscovering { get; set; }
+    public bool? OptionPowered { get; set; }
+    public bool? OptionDiscoverable { get; set; }
+    public bool? OptionPairable { get; set; }
+    public bool? OptionDiscovering { get; set; }
 
     public void PrintEventProperties(ref StringBuilder stringBuilder)
     {
@@ -48,17 +50,11 @@ public abstract record class AdapterEventBaseModel : IAdapterEvent
     }
 }
 
-public record class AdapterEvent : AdapterModel, IEvent
+public record AdapterEvent : AdapterModel, IEvent
 {
     EventType IEvent.Event => EventTypes.EventAdapter;
 
-    private EventAction _action = EventAction.Added;
-
-    public EventAction Action
-    {
-        get => _action;
-        set => _action = value;
-    }
+    public EventAction Action { get; set; } = EventAction.Added;
 
     public new string ToConsoleString()
     {
@@ -71,7 +67,7 @@ public record class AdapterEvent : AdapterModel, IEvent
     public new void WriteJsonToStream(Utf8JsonWriter writer)
     {
         writer.WritePropertyName(SerializableContext.AdapterEventPropertyName);
-        if (_action == EventAction.Added)
+        if (Action == EventAction.Added)
         {
             (this as IAdapter).SerializeAll(writer);
             return;

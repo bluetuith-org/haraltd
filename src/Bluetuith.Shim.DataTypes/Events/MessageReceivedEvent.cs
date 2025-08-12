@@ -1,21 +1,16 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
-using static Bluetuith.Shim.DataTypes.IEvent;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Serializer;
+using static Bluetuith.Shim.DataTypes.Generic.IEvent;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Events;
 
-public record class MessageReceivedEvent : MessageEvent, IEvent
+public record MessageReceivedEvent : MessageEvent, IEvent
 {
     EventType IEvent.Event => EventTypes.EventDevice;
 
-    public EventAction _action = EventAction.Added;
-    public EventAction Action
-    {
-        get => _action;
-        set => _action = value;
-    }
-
-    public MessageReceivedEvent() { }
+    public EventAction Action { get; set; } = EventAction.Added;
 
     public string ToConsoleString()
     {
@@ -29,20 +24,16 @@ public record class MessageReceivedEvent : MessageEvent, IEvent
     }
 }
 
-public record class MessageEvent
+public record MessageEvent
 {
-    [JsonPropertyName("address")]
-    public string Address { get; set; }
+    [JsonPropertyName("address")] public string Address { get; set; }
 
-    [JsonPropertyName("folder")]
-    public string Folder { get; set; }
+    [JsonPropertyName("folder")] public string Folder { get; set; }
 
-    [JsonPropertyName("handle")]
-    public string Handle { get; set; }
+    [JsonPropertyName("handle")] public string Handle { get; set; }
 
     [JsonPropertyName("message_event_type")]
     public string MessageEventType { get; set; }
 
-    [JsonPropertyName("message_type")]
-    public string MessageType { get; set; }
+    [JsonPropertyName("message_type")] public string MessageType { get; set; }
 }

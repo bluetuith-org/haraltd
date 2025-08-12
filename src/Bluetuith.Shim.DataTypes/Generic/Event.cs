@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Generic;
 
 public interface IEvent : IResult
 {
@@ -9,7 +9,7 @@ public interface IEvent : IResult
         None = 0,
         Added,
         Updated,
-        Removed,
+        Removed
     }
 
     public EventType Event { get; }
@@ -18,31 +18,31 @@ public interface IEvent : IResult
 
 public static class ActionEnumExtensions
 {
-    private static readonly JsonEncodedText noneAction = JsonEncodedText.Encode("none");
-    private static readonly JsonEncodedText addedAction = JsonEncodedText.Encode("added");
-    private static readonly JsonEncodedText updatedAction = JsonEncodedText.Encode("updated");
-    private static readonly JsonEncodedText removedAction = JsonEncodedText.Encode("removed");
+    private static readonly JsonEncodedText NoneAction = JsonEncodedText.Encode("none");
+    private static readonly JsonEncodedText AddedAction = JsonEncodedText.Encode("added");
+    private static readonly JsonEncodedText UpdatedAction = JsonEncodedText.Encode("updated");
+    private static readonly JsonEncodedText RemovedAction = JsonEncodedText.Encode("removed");
 
     public static JsonEncodedText ToJsonEncodedText(this IEvent.EventAction action)
     {
         return action switch
         {
-            IEvent.EventAction.Added => addedAction,
-            IEvent.EventAction.Updated => updatedAction,
-            IEvent.EventAction.Removed => removedAction,
-            _ => noneAction,
+            IEvent.EventAction.Added => AddedAction,
+            IEvent.EventAction.Updated => UpdatedAction,
+            IEvent.EventAction.Removed => RemovedAction,
+            _ => NoneAction
         };
     }
 }
 
 public readonly record struct EventType
 {
-    public byte Value { get; }
-
     public EventType(byte code)
     {
         Value = code;
     }
+
+    public byte Value { get; }
 }
 
 public partial class EventTypes

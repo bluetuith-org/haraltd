@@ -1,8 +1,10 @@
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Models;
+using Bluetuith.Shim.DataTypes.OperationToken;
 
 namespace Bluetuith.Shim.Operations;
 
-public partial interface IBluetoothStack
+public interface IBluetoothStack
 {
     public ErrorData StartMonitors(OperationToken token);
     public ErrorData StopMonitors();
@@ -11,6 +13,7 @@ public partial interface IBluetoothStack
     public PlatformInfo GetPlatformInfo();
 
     #region Adapter Methods
+
     public (AdapterModel, ErrorData) GetAdapter(OperationToken token);
     public ErrorData SetPoweredState(bool enable);
     public ErrorData SetPairableState(bool enable);
@@ -20,9 +23,11 @@ public partial interface IBluetoothStack
     public ErrorData StartDeviceDiscovery(OperationToken token, int timeout = 0);
     public ErrorData StopDeviceDiscovery(OperationToken token);
     public Task<ErrorData> RemoveDeviceAsync(string address);
+
     #endregion
 
     #region Device Methods
+
     public (DeviceModel, ErrorData) GetDevice(OperationToken token, string address);
 
     public ErrorData Connect(OperationToken token, string address);
@@ -38,6 +43,7 @@ public partial interface IBluetoothStack
 
     // Message Access (MAP) based operations
     public Task<ErrorData> StartNotificationEventServerAsync(OperationToken token, string address);
+
     public Task<(MessageListingModel, ErrorData)> GetMessagesAsync(
         OperationToken token,
         string address,
@@ -45,16 +51,19 @@ public partial interface IBluetoothStack
         ushort fromIndex = 0,
         ushort maxMessageCount = 0
     );
+
     public Task<(BMessagesModel, ErrorData)> ShowMessageAsync(
         OperationToken token,
         string address,
         string handle
     );
+
     public Task<(GenericResult<int>, ErrorData)> GetTotalMessageCountAsync(
         OperationToken token,
         string address,
         string folderPath
     );
+
     public Task<(GenericResult<List<string>>, ErrorData)> GetMessageFoldersAsync(
         OperationToken token,
         string address,
@@ -63,23 +72,28 @@ public partial interface IBluetoothStack
 
     // Phonebook Access profile (PBAP) based operations
     public Task<(VcardModel, ErrorData)> GetAllContactsAsync(OperationToken token, string address);
+
     public Task<(VcardModel, ErrorData)> GetCombinedCallHistoryAsync(
         OperationToken token,
         string address
     );
+
     public Task<(VcardModel, ErrorData)> GetIncomingCallsHistoryAsync(
         OperationToken token,
         string address
     );
+
     public Task<(VcardModel, ErrorData)> GetOutgoingCallsHistoryAsync(
         OperationToken token,
         string address
     );
+
     public Task<(VcardModel, ErrorData)> GetMissedCallsAsync(OperationToken token, string address);
     public Task<(VcardModel, ErrorData)> GetSpeedDialAsync(OperationToken token, string address);
 
     // Object Push profile (OPP) based operations
     public Task<ErrorData> StartFileTransferSessionAsync(OperationToken token, string address);
+
     public (FileTransferModel, ErrorData) QueueFileSend(
         OperationToken token,
         string address,
@@ -91,5 +105,6 @@ public partial interface IBluetoothStack
     public ErrorData CancelFileTransfer(OperationToken token, string address);
 
     public ErrorData StopFileTransferSession(OperationToken token, string address);
+
     #endregion
 }

@@ -1,14 +1,23 @@
-﻿using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
 using DotNext.Threading;
 
-namespace Bluetuith.Shim.Operations;
+namespace Bluetuith.Shim.Operations.Managers;
 
 public static class AuthenticationManager
 {
-    private static readonly Dictionary<Guid, Dictionary<long, AuthenticationEvent>> events = new();
+    public enum AuthAgentType
+    {
+        None = 0,
+        Pairing,
+        Obex
+    }
 
-    private static Atomic<Guid> _pairingAgent = new();
-    private static Atomic<Guid> _obexAgent = new();
+    private static readonly Dictionary<Guid, Dictionary<long, AuthenticationEvent>> Events = new();
+
+    private static Atomic<Guid> _pairingAgent;
+    private static Atomic<Guid> _obexAgent;
 
     static AuthenticationManager()
     {
@@ -16,16 +25,9 @@ public static class AuthenticationManager
         _obexAgent.Write(Guid.Empty);
     }
 
-    public enum AuthAgentType : int
-    {
-        None = 0,
-        Pairing,
-        Obex,
-    }
-
     internal static ErrorData RegisterAuthAgent(AuthAgentType authAgentType, Guid clientId)
     {
-        if (clientId == default)
+        if (clientId == Guid.Empty)
             return Errors.ErrorUnexpected.AddMetadata("exception", "Invalid client ID");
 
         var registered = false;
@@ -56,7 +58,7 @@ public static class AuthenticationManager
 
     internal static ErrorData UnregisterAuthAgent(AuthAgentType authAgentType, Guid clientId)
     {
-        if (clientId == default)
+        if (clientId == Guid.Empty)
             return Errors.ErrorUnexpected.AddMetadata("exception", "Invalid client ID");
 
         switch (authAgentType)
@@ -82,15 +84,11 @@ public static class AuthenticationManager
         UnregisterAuthAgent(AuthAgentType.Pairing, clientId);
         UnregisterAuthAgent(AuthAgentType.Obex, clientId);
 
-        using var _ = events.AcquireWriteLock();
+        using var _ = Events.AcquireWriteLock();
 
-        if (events.TryGetValue(clientId, out var authList) && authList != null)
-        {
+        if (Events.TryGetValue(clientId, out var authList) && authList != null)
             foreach (var authEvent in authList.Values)
-            {
                 authEvent.Deny();
-            }
-        }
     }
 
     internal static bool AddEvent(
@@ -99,9 +97,9 @@ public static class AuthenticationManager
         AuthAgentType authAgentType = AuthAgentType.None
     )
     {
-        using var _ = events.AcquireWriteLock();
+        using var _ = Events.AcquireWriteLock();
 
-        Guid clientId = Guid.Empty;
+        var clientId = Guid.Empty;
 
         switch (authAgentType)
         {
@@ -126,10 +124,10 @@ public static class AuthenticationManager
 
         token.ClientId = clientId;
 
-        if (!events.TryGetValue(clientId, out var authList))
+        if (!Events.TryGetValue(clientId, out var authList))
         {
             authList = [];
-            events.Add(clientId, authList);
+            Events.Add(clientId, authList);
         }
 
         return authList.TryAdd(authenticationEvent.CurrentAuthId, authenticationEvent);
@@ -137,11 +135,11 @@ public static class AuthenticationManager
 
     internal static bool SetEventResponse(OperationToken token, long authId, string response)
     {
-        using var _ = events.AcquireWriteLock();
+        using var _ = Events.AcquireWriteLock();
 
         var found = true;
 
-        if (events.TryGetValue(token.ClientId, out var authList))
+        if (Events.TryGetValue(token.ClientId, out var authList))
         {
             if (authList != null && authList.Remove(authId, out var authEvent))
             {
@@ -150,7 +148,7 @@ public static class AuthenticationManager
             }
 
             if (authList == null || authList?.Count == 0)
-                events.Remove(token.ClientId);
+                Events.Remove(token.ClientId);
         }
 
         return found;

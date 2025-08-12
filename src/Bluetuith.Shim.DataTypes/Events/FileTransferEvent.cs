@@ -1,10 +1,12 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using static Bluetuith.Shim.DataTypes.IEvent;
-using static Bluetuith.Shim.DataTypes.IFileTransferEvent;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Serializer;
+using static Bluetuith.Shim.DataTypes.Events.IFileTransferEvent;
+using static Bluetuith.Shim.DataTypes.Generic.IEvent;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Events;
 
 public interface IFileTransferEvent
 {
@@ -15,33 +17,29 @@ public interface IFileTransferEvent
         Active,
         Suspended,
         Complete,
-        Error,
+        Error
     }
 
     [JsonPropertyName("name")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string Name { get; set; }
 
-    [JsonPropertyName("address")]
-    public string Address { get; set; }
+    [JsonPropertyName("address")] public string Address { get; set; }
 
     [JsonPropertyName("filename")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string FileName { get; set; }
 
-    [JsonPropertyName("size")]
-    public long FileSize { get; set; }
+    [JsonPropertyName("size")] public long FileSize { get; set; }
 
-    [JsonPropertyName("transferred")]
-    public long BytesTransferred { get; set; }
+    [JsonPropertyName("transferred")] public long BytesTransferred { get; set; }
 
-    [JsonPropertyName("status")]
-    public TransferStatus Status { get; set; }
+    [JsonPropertyName("status")] public TransferStatus Status { get; set; }
 
     public void AppendEventProperties(ref StringBuilder stringBuilder);
 }
 
-public abstract record class FileTransferEventBaseModel : IFileTransferEvent
+public abstract record FileTransferEventBaseModel : IFileTransferEvent
 {
     public string Address { get; set; } = "";
 
@@ -64,18 +62,11 @@ public abstract record class FileTransferEventBaseModel : IFileTransferEvent
     }
 }
 
-public record class FileTransferEvent : FileTransferEventBaseModel, IEvent
+public record FileTransferEvent : FileTransferEventBaseModel, IEvent
 {
     EventType IEvent.Event => EventTypes.EventFileTransfer;
 
-    private EventAction _action = EventAction.Added;
-    public EventAction Action
-    {
-        get => _action;
-        set => _action = value;
-    }
-
-    public FileTransferEvent() { }
+    public EventAction Action { get; set; } = EventAction.Added;
 
     public string ToConsoleString()
     {

@@ -1,40 +1,13 @@
-﻿using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Models;
 using Nefarius.Utilities.DeviceManagement.PnP;
-using Windows.Devices.Bluetooth;
-using Windows.Devices.Enumeration;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Devices;
 
-internal partial record class DeviceModelExt : DeviceModel
+internal record DeviceModelExt : DeviceModel
 {
-    private DeviceModelExt() { }
-
-    internal static (DeviceModel, ErrorData) ConvertToDeviceModel(
-        BluetoothDevice windowsDevice,
-        bool appendServices = false
-    )
+    private DeviceModelExt()
     {
-        DeviceModelExt device = new();
-
-        return (device, device.MergeBluetoothDevice(windowsDevice, appendServices));
-    }
-
-    internal static (DeviceModel, ErrorData) ConvertToDeviceModel(
-        DeviceInformation deviceInformation,
-        bool appendServices = false
-    )
-    {
-        DeviceModel device = new();
-
-        return (
-            device,
-            device.MergeDeviceInformation(deviceInformation, appendServices)
-                ? Errors.ErrorNone
-                : Errors.ErrorUnexpected.AddMetadata(
-                    "exception",
-                    "Could not parse device information"
-                )
-        );
     }
 
     internal static (DeviceModel, ErrorData) ConvertToDeviceModel(PnPDevice pnpDevice)
@@ -42,16 +15,6 @@ internal partial record class DeviceModelExt : DeviceModel
         DeviceModelExt device = new();
 
         return (device, device.MergePnpDevice(pnpDevice));
-    }
-
-    internal static (DeviceModel, ErrorData) ConvertToDeviceModel(
-        string interfaceId,
-        int batteryPercentage
-    )
-    {
-        DeviceModel device = new DeviceModel();
-
-        return (device, device.MergeBatteryInformation(interfaceId, batteryPercentage));
     }
 
     internal static (DeviceModel, ErrorData) ConvertToDeviceModel(string address)

@@ -1,15 +1,19 @@
 ﻿using System.Runtime.InteropServices;
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Models;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Stack.Microsoft.Devices;
+using Bluetuith.Shim.Stack.Microsoft.Monitors;
+using Bluetuith.Shim.Stack.Microsoft.Windows;
 using Microsoft.Win32;
 using Nefarius.Utilities.Bluetooth;
 using Nefarius.Utilities.DeviceManagement.PnP;
 using Windows.Devices.Bluetooth;
 using Windows.Win32;
 using Windows.Win32.Devices.Bluetooth;
-using Windows.Win32.Foundation;
 using Windows.Win32.Storage.FileSystem;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Adapters;
 
 internal static class AdapterMethods
 {
@@ -33,7 +37,7 @@ internal static class AdapterMethods
     internal static (GenericResult<List<DeviceModel>>, ErrorData) GetPairedDevices()
     {
         List<DeviceModel> pairedDevices = [];
-        ErrorData error = Errors.ErrorNone;
+        var error = Errors.ErrorNone;
 
         try
         {
@@ -62,7 +66,9 @@ internal static class AdapterMethods
         {
             return (
                 GenericResult<List<DeviceModel>>.Empty(),
-                Errors.ErrorDeviceNotFound.WrapError(new() { { "exception", e.Message } })
+                Errors.ErrorDeviceNotFound.WrapError(
+                    new Dictionary<string, object> { { "exception", e.Message } }
+                )
             );
         }
 
@@ -74,11 +80,11 @@ internal static class AdapterMethods
     {
         try
         {
-            using BluetoothDevice device = await DeviceUtils.GetBluetoothDevice(address);
+            using var device = await DeviceUtils.GetBluetoothDevice(address);
             if (!device.DeviceInformation.Pairing.IsPaired)
                 return Errors.ErrorDeviceNotFound;
 
-            using BluetoothLEDevice device1 = await BluetoothLEDevice.FromBluetoothAddressAsync(
+            using var device1 = await BluetoothLEDevice.FromBluetoothAddressAsync(
                 device.BluetoothAddress
             );
             if (device1 != null)
@@ -89,9 +95,7 @@ internal static class AdapterMethods
 
             var res = PInvoke.BluetoothRemoveDevice(addressParam);
             if (res != 0)
-            {
                 throw new Exception($"could not unpair device with address {address}");
-            }
         }
         catch (Exception ex)
         {
@@ -106,46 +110,38 @@ internal static class AdapterMethods
         try
         {
             var isOperable = HostRadio.IsOperable;
-            if (enable && isOperable || !enable && !isOperable)
-            {
+            if ((enable && isOperable) || (!enable && !isOperable))
                 return Errors.ErrorNone;
-            }
 
-            using (HostRadio hostRadio = new())
-            {
-                if (!enable)
-                {
-                    hostRadio.DisableRadio();
-                }
-            }
-            ;
+            using HostRadio hostRadio = new();
+            if (!enable)
+                hostRadio.DisableRadio();
         }
         catch (Exception e)
         {
-            return Errors.ErrorAdapterStateAccess.WrapError(new() { { "exception", e.Message } });
+            return Errors.ErrorAdapterStateAccess.WrapError(
+                new Dictionary<string, object> { { "exception", e.Message } }
+            );
         }
 
         return Errors.ErrorNone;
     }
 
-    internal static ErrorData SetPairableState(bool _) => Errors.ErrorUnsupported;
+    internal static ErrorData SetPairableState(bool _)
+    {
+        return Errors.ErrorUnsupported;
+    }
 
     internal static unsafe ErrorData SetDiscoverableState(bool enable)
     {
-        SafeHandle _radioHandle = null;
+        SafeHandle radioHandle = null;
 
         try
         {
-            if (
-                !Devcon.FindByInterfaceGuid(
-                    HostRadio.DeviceInterface,
-                    out string path,
-                    out string instanceId
-                )
-            )
+            if (!Devcon.FindByInterfaceGuid(HostRadio.DeviceInterface, out var path, out _))
                 throw new Exception("No adapter found");
 
-            _radioHandle = PInvoke.CreateFile(
+            radioHandle = PInvoke.CreateFile(
                 path,
                 (uint)FileAccess.ReadWrite,
                 FILE_SHARE_MODE.FILE_SHARE_READ | FILE_SHARE_MODE.FILE_SHARE_WRITE,
@@ -158,8 +154,8 @@ internal static class AdapterMethods
             short[] scanFlags = [0x0103, (short)(enable ? 1 : 0)];
             fixed (void* ptr = scanFlags)
             {
-                BOOL ret = PInvoke.DeviceIoControl(
-                    _radioHandle,
+                var ret = PInvoke.DeviceIoControl(
+                    radioHandle,
                     0x411020,
                     ptr,
                     (uint)(scanFlags.Length * 2),
@@ -183,30 +179,24 @@ internal static class AdapterMethods
         }
         finally
         {
-            _radioHandle?.Close();
+            radioHandle?.Close();
         }
 
         return Errors.ErrorNone;
     }
 
-    internal static Nullable<bool> GetDiscoverableState()
+    internal static bool? GetDiscoverableState()
     {
         var discoverable = false;
 
-        SafeHandle _radioHandle = null;
+        SafeHandle radioHandle = null;
 
         try
         {
-            if (
-                !Devcon.FindByInterfaceGuid(
-                    HostRadio.DeviceInterface,
-                    out string path,
-                    out string instanceId
-                )
-            )
+            if (!Devcon.FindByInterfaceGuid(HostRadio.DeviceInterface, out var path, out _))
                 throw new Exception("No adapter found");
 
-            _radioHandle = PInvoke.CreateFile(
+            radioHandle = PInvoke.CreateFile(
                 path,
                 (uint)FileAccess.ReadWrite,
                 FILE_SHARE_MODE.FILE_SHARE_READ | FILE_SHARE_MODE.FILE_SHARE_WRITE,
@@ -216,12 +206,14 @@ internal static class AdapterMethods
                 null
             );
 
-            discoverable = PInvoke.BluetoothIsDiscoverable(_radioHandle) > 0;
+            discoverable = PInvoke.BluetoothIsDiscoverable(radioHandle) > 0;
         }
-        catch { }
+        catch
+        {
+        }
         finally
         {
-            _radioHandle?.Close();
+            radioHandle?.Close();
         }
 
         return discoverable;
@@ -233,26 +225,20 @@ internal static class AdapterMethods
 
         try
         {
-            if (Devcon.FindByInterfaceGuid(HostRadio.DeviceInterface, out PnPDevice path))
+            if (Devcon.FindByInterfaceGuid(HostRadio.DeviceInterface, out _))
             {
-                using (
-                    RegistryKey key = Registry.LocalMachine.OpenSubKey(
-                        WindowsPnPInformation.Adapter.ServicesRegistryPath,
-                        false
-                    )
-                )
-                {
-                    if (key is not null)
-                    {
-                        foreach (var subkeys in key.GetSubKeyNames())
-                        {
-                            services.Add(Guid.Parse(subkeys));
-                        }
-                    }
-                }
+                using var key = Registry.LocalMachine.OpenSubKey(
+                    WindowsPnPInformation.Adapter.ServicesRegistryPath,
+                    false
+                );
+                if (key is not null)
+                    foreach (var subkeys in key.GetSubKeyNames())
+                        services.Add(Guid.Parse(subkeys));
             }
         }
-        catch { }
+        catch
+        {
+        }
 
         return [.. services];
     }
@@ -271,7 +257,9 @@ internal static class AdapterMethods
         }
         catch (Exception e)
         {
-            return Errors.ErrorDeviceDiscovery.WrapError(new() { { "exception", e.Message } });
+            return Errors.ErrorDeviceDiscovery.WrapError(
+                new Dictionary<string, object> { { "exception", e.Message } }
+            );
         }
     }
 

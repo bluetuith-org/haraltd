@@ -1,176 +1,196 @@
-﻿namespace Bluetuith.Shim.DataTypes;
+﻿namespace Bluetuith.Shim.DataTypes.Generic;
 
-internal record class StackErrorCode : ErrorCode
+internal record StackErrorCode : ErrorCode
 {
-    internal enum ErrorCodeValue : int
-    {
-        ERR_ADAPTER_NOT_FOUND,
-        ERR_ADAPTER_POWER_MODE_ACCESS,
-        ERR_ADAPTER_SERVICES_NOT_SUPPORTED,
-        ERR_DEVICE_DISCOVERY,
-        ERR_PAIRING_RESET,
-        ERR_DEVICE_SERVICES_NOT_FOUND,
-        ERR_DEVICE_SERVICES_NOT_SUPPORTED,
-        ERR_DEVICE_NOT_PAIRED,
-        ERR_DEVICE_UNPAIRING,
-        ERR_DEVICE_NOT_FOUND,
-        ERR_DEVICE_NOT_CONNECTED,
-        ERR_DEVICE_ALREADY_CONNECTED,
-        ERR_DEVICE_DISCONNECT,
-        ERR_DEVICE_FILE_TRANSFER_CLIENT,
-        ERR_DEVICE_FILE_TRANSFER_SERVER,
-        ERR_DEVICE_PHONEBOOK_CLIENT,
-        ERR_DEVICE_MESSAGE_ACCESS_CLIENT,
-        ERR_DEVICE_MESSAGE_ACCESS_SERVER,
-        ERR_DEVICE_A2DP_CLIENT,
-    }
+    internal static readonly ErrorCode ErrAdapterNotFound = new StackErrorCode(
+        ErrorCodeValue.ErrAdapterNotFound
+    );
+
+    internal static readonly ErrorCode ErrAdapterPowerModeAccess = new StackErrorCode(
+        ErrorCodeValue.ErrAdapterPowerModeAccess
+    );
+
+    internal static readonly ErrorCode ErrAdapterServicesNotSupported = new StackErrorCode(
+        ErrorCodeValue.ErrAdapterServicesNotSupported
+    );
+
+    internal static readonly ErrorCode ErrDeviceDiscovery = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceDiscovery
+    );
+
+    internal static readonly ErrorCode ErrDevicePairing = new StackErrorCode(
+        ErrorCodeValue.ErrPairingReset
+    );
+
+    internal static readonly ErrorCode ErrDeviceServicesNotFound = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceServicesNotFound
+    );
+
+    internal static readonly ErrorCode ErrDeviceServicesNotSupported = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceServicesNotSupported
+    );
+
+    internal static ErrorCode ErrDeviceNotPaired = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceNotPaired
+    );
+
+    internal static readonly ErrorCode ErrDeviceUnpairing = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceUnpairing
+    );
+
+    internal static readonly ErrorCode ErrDeviceNotFound = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceNotFound
+    );
+
+    internal static readonly ErrorCode ErrDeviceNotConnected = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceNotConnected
+    );
+
+    internal static readonly ErrorCode ErrDeviceAlreadyConnected = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceAlreadyConnected
+    );
+
+    internal static readonly ErrorCode ErrDeviceDisconnect = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceDisconnect
+    );
+
+    internal static readonly ErrorCode ErrDeviceFileTransferSession = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceFileTransferClient
+    );
+
+    internal static ErrorCode ErrDeviceFileTransferServer = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceFileTransferServer
+    );
+
+    internal static readonly ErrorCode ErrDevicePhonebookClient = new StackErrorCode(
+        ErrorCodeValue.ErrDevicePhonebookClient
+    );
+
+    internal static readonly ErrorCode ErrDeviceMessageAccessClient = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceMessageAccessClient
+    );
+
+    internal static readonly ErrorCode ErrDeviceMessageAccessServer = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceMessageAccessServer
+    );
+
+    internal static readonly ErrorCode ErrDeviceA2DpClient = new StackErrorCode(
+        ErrorCodeValue.ErrDeviceA2DpClient
+    );
 
     internal StackErrorCode(ErrorCodeValue value)
-        : base(value.ToString(), (int)value) { }
+        : base(value.ToString(), (int)value)
+    {
+    }
 
-    internal static ErrorCode ERR_ADAPTER_NOT_FOUND = new StackErrorCode(
-        ErrorCodeValue.ERR_ADAPTER_NOT_FOUND
-    );
-    internal static ErrorCode ERR_ADAPTER_POWER_MODE_ACCESS = new StackErrorCode(
-        ErrorCodeValue.ERR_ADAPTER_POWER_MODE_ACCESS
-    );
-    internal static ErrorCode ERR_ADAPTER_SERVICES_NOT_SUPPORTED = new StackErrorCode(
-        ErrorCodeValue.ERR_ADAPTER_SERVICES_NOT_SUPPORTED
-    );
-    internal static ErrorCode ERR_DEVICE_DISCOVERY = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_DISCOVERY
-    );
-    internal static ErrorCode ERR_DEVICE_PAIRING = new StackErrorCode(
-        ErrorCodeValue.ERR_PAIRING_RESET
-    );
-    internal static ErrorCode ERR_DEVICE_SERVICES_NOT_FOUND = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_SERVICES_NOT_FOUND
-    );
-    internal static ErrorCode ERR_DEVICE_SERVICES_NOT_SUPPORTED = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_SERVICES_NOT_SUPPORTED
-    );
-    internal static ErrorCode ERR_DEVICE_NOT_PAIRED = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_NOT_PAIRED
-    );
-    internal static ErrorCode ERR_DEVICE_UNPAIRING = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_UNPAIRING
-    );
-    internal static ErrorCode ERR_DEVICE_NOT_FOUND = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_NOT_FOUND
-    );
-    internal static ErrorCode ERR_DEVICE_NOT_CONNECTED = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_NOT_CONNECTED
-    );
-    internal static ErrorCode ERR_DEVICE_ALREADY_CONNECTED = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_ALREADY_CONNECTED
-    );
-    internal static ErrorCode ERR_DEVICE_DISCONNECT = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_DISCONNECT
-    );
-    internal static ErrorCode ERR_DEVICE_FILE_TRANSFER_SESSION = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_FILE_TRANSFER_CLIENT
-    );
-    internal static ErrorCode ERR_DEVICE_FILE_TRANSFER_SERVER = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_FILE_TRANSFER_SERVER
-    );
-    internal static ErrorCode ERR_DEVICE_PHONEBOOK_CLIENT = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_PHONEBOOK_CLIENT
-    );
-    internal static ErrorCode ERR_DEVICE_MESSAGE_ACCESS_CLIENT = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_MESSAGE_ACCESS_CLIENT
-    );
-    internal static ErrorCode ERR_DEVICE_MESSAGE_ACCESS_SERVER = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_MESSAGE_ACCESS_SERVER
-    );
-    internal static ErrorCode ERR_DEVICE_A2DP_CLIENT = new StackErrorCode(
-        ErrorCodeValue.ERR_DEVICE_A2DP_CLIENT
-    );
+    internal enum ErrorCodeValue
+    {
+        ErrAdapterNotFound,
+        ErrAdapterPowerModeAccess,
+        ErrAdapterServicesNotSupported,
+        ErrDeviceDiscovery,
+        ErrPairingReset,
+        ErrDeviceServicesNotFound,
+        ErrDeviceServicesNotSupported,
+        ErrDeviceNotPaired,
+        ErrDeviceUnpairing,
+        ErrDeviceNotFound,
+        ErrDeviceNotConnected,
+        ErrDeviceAlreadyConnected,
+        ErrDeviceDisconnect,
+        ErrDeviceFileTransferClient,
+        ErrDeviceFileTransferServer,
+        ErrDevicePhonebookClient,
+        ErrDeviceMessageAccessClient,
+        ErrDeviceMessageAccessServer,
+        ErrDeviceA2DpClient
+    }
 }
 
 public partial class Errors
 {
-    public static ErrorData ErrorAdapterNotFound = new(
-        Code: StackErrorCode.ERR_ADAPTER_NOT_FOUND,
-        Description: "An adapter was not found"
+    public static readonly ErrorData ErrorAdapterNotFound = new(
+        StackErrorCode.ErrAdapterNotFound,
+        "An adapter was not found"
     );
 
     public static readonly ErrorData ErrorAdapterStateAccess = new(
-        Code: StackErrorCode.ERR_ADAPTER_POWER_MODE_ACCESS,
-        Description: "An error occurred while accessing adapter states"
+        StackErrorCode.ErrAdapterPowerModeAccess,
+        "An error occurred while accessing adapter states"
     );
 
     public static readonly ErrorData ErrorAdapterServicesNotSupported = new(
-        Code: StackErrorCode.ERR_ADAPTER_SERVICES_NOT_SUPPORTED,
-        Description: "These services is not supported by the adapter."
+        StackErrorCode.ErrAdapterServicesNotSupported,
+        "These services is not supported by the adapter."
     );
 
     public static readonly ErrorData ErrorDeviceDiscovery = new(
-        Code: StackErrorCode.ERR_DEVICE_DISCOVERY,
-        Description: "An unexpected error occurred during device discovery"
+        StackErrorCode.ErrDeviceDiscovery,
+        "An unexpected error occurred during device discovery"
     );
 
     public static readonly ErrorData ErrorDeviceNotConnected = new(
-        Code: StackErrorCode.ERR_DEVICE_NOT_CONNECTED,
-        Description: "The device is not connected"
+        StackErrorCode.ErrDeviceNotConnected,
+        "The device is not connected"
     );
 
     public static readonly ErrorData ErrorDeviceAlreadyConnected = new(
-        Code: StackErrorCode.ERR_DEVICE_ALREADY_CONNECTED,
-        Description: "The device is already connected"
+        StackErrorCode.ErrDeviceAlreadyConnected,
+        "The device is already connected"
     );
 
     public static readonly ErrorData ErrorDeviceDisconnect = new(
-        Code: StackErrorCode.ERR_DEVICE_DISCONNECT,
-        Description: "The device cannot be disconnected"
+        StackErrorCode.ErrDeviceDisconnect,
+        "The device cannot be disconnected"
     );
 
     public static readonly ErrorData ErrorDevicePairing = new(
-        Code: StackErrorCode.ERR_DEVICE_PAIRING,
-        Description: "Cannot pair device"
+        StackErrorCode.ErrDevicePairing,
+        "Cannot pair device"
     );
 
     public static readonly ErrorData ErrorDeviceNotFound = new(
-        Code: StackErrorCode.ERR_DEVICE_NOT_FOUND,
-        Description: "Cannot find device with the specified address"
+        StackErrorCode.ErrDeviceNotFound,
+        "Cannot find device with the specified address"
     );
 
     public static readonly ErrorData ErrorDeviceUnpairing = new(
-        Code: StackErrorCode.ERR_DEVICE_UNPAIRING,
-        Description: "The device cannot be unpaired"
+        StackErrorCode.ErrDeviceUnpairing,
+        "The device cannot be unpaired"
     );
 
     public static readonly ErrorData ErrorDeviceServicesNotSupported = new(
-        Code: StackErrorCode.ERR_DEVICE_SERVICES_NOT_SUPPORTED,
-        Description: "These services is not supported by the device."
+        StackErrorCode.ErrDeviceServicesNotSupported,
+        "These services is not supported by the device."
     );
 
     public static readonly ErrorData ErrorDeviceServicesNotFound = new(
-        Code: StackErrorCode.ERR_DEVICE_SERVICES_NOT_FOUND,
-        Description: "The device's list of services was not found"
+        StackErrorCode.ErrDeviceServicesNotFound,
+        "The device's list of services was not found"
     );
 
     public static readonly ErrorData ErrorDeviceFileTransferSession = new(
-        Code: StackErrorCode.ERR_DEVICE_FILE_TRANSFER_SESSION,
-        Description: "An error occurred during a file transfer client session"
+        StackErrorCode.ErrDeviceFileTransferSession,
+        "An error occurred during a file transfer client session"
     );
 
     public static readonly ErrorData ErrorDevicePhonebookClient = new(
-        Code: StackErrorCode.ERR_DEVICE_PHONEBOOK_CLIENT,
-        Description: "An error occurred during a phonebook download session"
+        StackErrorCode.ErrDevicePhonebookClient,
+        "An error occurred during a phonebook download session"
     );
 
     public static readonly ErrorData ErrorDeviceMessageAccessClient = new(
-        Code: StackErrorCode.ERR_DEVICE_MESSAGE_ACCESS_CLIENT,
-        Description: "An error occurred during a message access client session"
+        StackErrorCode.ErrDeviceMessageAccessClient,
+        "An error occurred during a message access client session"
     );
 
     public static readonly ErrorData ErrorDeviceMessageAccessServer = new(
-        Code: StackErrorCode.ERR_DEVICE_MESSAGE_ACCESS_SERVER,
-        Description: "An error occurred during a message access server session"
+        StackErrorCode.ErrDeviceMessageAccessServer,
+        "An error occurred during a message access server session"
     );
 
     public static readonly ErrorData ErrorDeviceA2dpClient = new(
-        Code: StackErrorCode.ERR_DEVICE_A2DP_CLIENT,
-        Description: "An error occurred during an A2DP client session"
+        StackErrorCode.ErrDeviceA2DpClient,
+        "An error occurred during an A2DP client session"
     );
 }

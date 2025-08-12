@@ -1,7 +1,10 @@
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Operations.Managers;
+using Bluetuith.Shim.Operations.OutputStream;
 using ConsoleAppFramework;
 
-namespace Bluetuith.Shim.Operations;
+namespace Bluetuith.Shim.Operations.Commands.Definitions;
 
 [Hidden]
 /// <summary>Perform functions related to an ongoing RPC operation within a session.</summary>

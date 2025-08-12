@@ -1,11 +1,16 @@
-﻿using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Models;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Stack.Microsoft.Adapters;
+using Bluetuith.Shim.Stack.Microsoft.Devices.ConnectionMethods;
+using Bluetuith.Shim.Stack.Microsoft.Devices.Profiles;
 using DotNext.Collections.Generic;
 using InTheHand.Net;
 using InTheHand.Net.Bluetooth;
 using Windows.Devices.Bluetooth;
 using Windows.Foundation;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Devices;
 
 internal static class Connection
 {
@@ -16,7 +21,7 @@ internal static class Connection
         BluetoothService.AudioSource,
         BluetoothService.AudioSink,
         BluetoothService.Handsfree,
-        BluetoothService.Headset,
+        BluetoothService.Headset
     ];
 
     internal static ErrorData Connect(OperationToken token, string address)
@@ -30,11 +35,9 @@ internal static class Connection
         {
             AdapterMethods.ThrowIfRadioNotOperable();
 
-            if (!IsAdapterSupported(token, out var error, AppSupportedProfiles))
-                return error;
-
             if (
-                !IsDeviceSupported(
+                !IsAdapterSupported(token, out var error, AppSupportedProfiles)
+                || !IsDeviceSupported(
                     out var device,
                     out var supportedProfiles,
                     out error,
@@ -68,10 +71,10 @@ internal static class Connection
         {
             AdapterMethods.ThrowIfRadioNotOperable();
 
-            if (!IsAdapterSupported(token, out var error, profileGuid))
-                return error;
-
-            if (!IsDeviceSupported(out var device, out _, out error, token, address, profileGuid))
+            if (
+                !IsAdapterSupported(token, out var error, profileGuid)
+                || !IsDeviceSupported(out var device, out _, out error, token, address, profileGuid)
+            )
                 return error;
 
             return TryConnectionMethods(token, device, profileGuid);
@@ -123,32 +126,21 @@ internal static class Connection
             .GetAwaiter()
             .GetResult();
         if (windowsDevice == null)
-        {
             return Errors.ErrorDeviceNotFound;
-        }
 
         var error = Errors.ErrorDeviceNotConnected;
 
         var connectionDone = new CancellationTokenSource();
 
-        bool checkError(ErrorData e)
-        {
-            if (error != Errors.ErrorNone)
-                error = e;
-
-            return e == Errors.ErrorNone;
-        }
-
-        TypedEventHandler<BluetoothDevice, object> connectionStatusChanged = new(
-            (s, e) => connectionDone.Cancel()
-        );
+        TypedEventHandler<BluetoothDevice, object> connectionStatusChanged = (_, _) =>
+            connectionDone.Cancel();
 
         try
         {
             if (!windowsDevice.DeviceInformation.Pairing.IsPaired)
             {
                 error = new Pairing().PairAsync(token, device.Address).Result;
-                if (!checkError(error))
+                if (!CheckError(error))
                     goto FinishConnection;
             }
 
@@ -159,18 +151,18 @@ internal static class Connection
                 supportedProfiles.Contains(AppSupportedProfiles[0])
                 && A2dp.StartAudioSessionAsync(token, device.Address).Result is var a2dpError
             )
-                if (checkError(a2dpError))
+                if (CheckError(a2dpError))
                     goto FinishConnection;
 
             if (
                 supportedProfiles.Length > 0
                 && AudioEndpoints.Connect(device, windowsDevice.DeviceInformation) is var audioError
             )
-                if (checkError(audioError))
+                if (CheckError(audioError))
                     goto FinishConnection;
 
             if (PnPDeviceStates.Toggle(device) is var toggleError)
-                checkError(toggleError);
+                CheckError(toggleError);
 
             FinishConnection:
             if (error != Errors.ErrorNone)
@@ -191,6 +183,14 @@ internal static class Connection
         }
 
         return error;
+
+        bool CheckError(ErrorData e)
+        {
+            if (error != Errors.ErrorNone)
+                error = e;
+
+            return e == Errors.ErrorNone;
+        }
     }
 
     private static bool IsDeviceSupported(
@@ -214,11 +214,9 @@ internal static class Connection
 
         (device, errors) = DeviceModelExt.ConvertToDeviceModel(address);
         if (errors != Errors.ErrorNone)
-        {
             goto FinishChecks;
-        }
 
-        if (device.OptionConnected == null || device.OptionUUIDs == null)
+        if (device.OptionConnected == null || device.OptionUuiDs == null)
         {
             errors = Errors.ErrorUnexpected.AddMetadata(
                 "exception",
@@ -228,7 +226,7 @@ internal static class Connection
         }
 
         var connected = device.OptionConnected == true;
-        var uuids = device.OptionUUIDs;
+        var uuids = device.OptionUuiDs;
 
         if (connected)
         {
@@ -269,8 +267,8 @@ internal static class Connection
             goto FinishChecks;
         }
 
-        var supportedProfiles = adapter.UUIDs.ToList().Intersect(profiles);
-        if (supportedProfiles.Count() == 0)
+        var supportedProfiles = adapter.UuiDs.ToList().Intersect(profiles);
+        if (!supportedProfiles.Any())
             errors = Errors.ErrorAdapterServicesNotSupported.AddMetadata(
                 "profiles",
                 profiles.ToString(", ")

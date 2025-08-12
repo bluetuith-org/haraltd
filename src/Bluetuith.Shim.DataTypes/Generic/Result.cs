@@ -1,7 +1,8 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Bluetuith.Shim.DataTypes.Serializer;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Generic;
 
 public interface IResult
 {
@@ -9,26 +10,28 @@ public interface IResult
     public void WriteJsonToStream(Utf8JsonWriter writer);
 }
 
-public abstract record class Result : IResult
+public abstract record Result : IResult
 {
     public virtual string ToConsoleString()
     {
         return "";
     }
 
-    public virtual void WriteJsonToStream(Utf8JsonWriter writer) { }
+    public virtual void WriteJsonToStream(Utf8JsonWriter writer)
+    {
+    }
 }
 
-public record class GenericResult<T> : Result
+public record GenericResult<T> : Result
 {
-    public Func<string> ConsoleFunc { get; set; }
-    public Action<Utf8JsonWriter> JsonNodeFunc { get; set; }
-
     public GenericResult(Func<string> consoleFunc, Action<Utf8JsonWriter> jsonNodeFunc)
     {
         ConsoleFunc = consoleFunc;
         JsonNodeFunc = jsonNodeFunc;
     }
+
+    public Func<string> ConsoleFunc { get; set; }
+    public Action<Utf8JsonWriter> JsonNodeFunc { get; set; }
 
     public override string ToConsoleString()
     {
@@ -38,24 +41,14 @@ public record class GenericResult<T> : Result
     public override void WriteJsonToStream(Utf8JsonWriter writer)
     {
         if (JsonNodeFunc != null)
-        {
             JsonNodeFunc(writer);
-        }
         else
-        {
             base.WriteJsonToStream(writer);
-        }
     }
 
     public static GenericResult<T> Empty()
     {
-        return new GenericResult<T>(
-            consoleFunc: delegate
-            {
-                return "";
-            },
-            jsonNodeFunc: delegate { }
-        );
+        return new GenericResult<T>(() => "", delegate { });
     }
 }
 
@@ -68,18 +61,16 @@ public static class ResultExtensions
     )
     {
         return new GenericResult<List<string>>(
-            consoleFunc: () =>
+            () =>
             {
                 StringBuilder stringBuilder = new();
                 stringBuilder.AppendLine($"= {consoleObjectName} =");
                 foreach (var item in list)
-                {
                     stringBuilder.AppendLine(item);
-                }
 
                 return stringBuilder.ToString();
             },
-            jsonNodeFunc: (writer) =>
+            writer =>
             {
                 writer.WritePropertyName(jsonObjectName);
                 list.SerializeAll(writer);
@@ -95,11 +86,8 @@ public static class ResultExtensions
         where T : IConvertible
     {
         return new GenericResult<T>(
-            consoleFunc: () =>
-            {
-                return $"{consoleObjectName}: {value}";
-            },
-            jsonNodeFunc: (writer) =>
+            () => $"{consoleObjectName}: {value}",
+            writer =>
             {
                 writer.WritePropertyName(jsonObjectName);
                 value.SerializeAll(writer);

@@ -1,7 +1,9 @@
+using System.Collections;
 using System.Text;
 using System.Text.Json;
+using Bluetuith.Shim.DataTypes.Serializer;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Generic;
 
 public interface IError : IErrorEvent
 {
@@ -14,16 +16,18 @@ public interface IErrorEvent : IEvent
     public string Description { get; }
 }
 
-public record class ErrorCode
+public record ErrorCode
 {
-    public static ErrorCode ERROR_NONE = new("ERROR_NONE", 0);
-    public static ErrorCode ERROR_UNEXPECTED = new("ERROR_UNEXPECTED", -1);
-    public static ErrorCode ERROR_OPERATION_CANCELLED = new("ERROR_OPERATION_CANCELLED", -2);
-    public static ErrorCode ERROR_OPERATION_IN_PROGRESS = new("ERROR_OPERATION_IN_PROGRESS", -3);
-    public static ErrorCode ERROR_UNSUPPORTED = new("ERROR_UNSUPPORTED", -100);
+    public static readonly ErrorCode ErrorNone = new("ERROR_NONE", 0);
+    public static readonly ErrorCode ErrorUnexpected = new("ERROR_UNEXPECTED", -1);
+    public static readonly ErrorCode ErrorOperationCancelled = new("ERROR_OPERATION_CANCELLED", -2);
 
-    public string Name { get; }
-    public int Value { get; }
+    public static readonly ErrorCode ErrorOperationInProgress = new(
+        "ERROR_OPERATION_IN_PROGRESS",
+        -3
+    );
+
+    public static readonly ErrorCode ErrorUnsupported = new("ERROR_UNSUPPORTED", -100);
 
     public ErrorCode(string name, int code)
     {
@@ -31,19 +35,29 @@ public record class ErrorCode
         Value = code;
     }
 
+    public string Name { get; }
+    public int Value { get; }
+
     public sealed override string ToString()
     {
-        return @$"{Name} ({Value})";
+        return $"{Name} ({Value})";
     }
 }
 
-public record class ErrorEvent : IErrorEvent, IEvent
+public record ErrorEvent : IErrorEvent
 {
     protected static readonly JsonEncodedText ErrorText = JsonEncodedText.Encode("error");
     protected static readonly JsonEncodedText CodeText = JsonEncodedText.Encode("code");
+
     protected static readonly JsonEncodedText DescriptionText = JsonEncodedText.Encode(
         "description"
     );
+
+    public ErrorEvent(ErrorCode Code, string Description)
+    {
+        this.Code = Code;
+        this.Description = Description;
+    }
 
     public ErrorCode Code { get; }
 
@@ -57,18 +71,10 @@ public record class ErrorEvent : IErrorEvent, IEvent
         set => throw new InvalidDataException();
     }
 
-    public ErrorEvent(ErrorCode Code, string Description)
-    {
-        this.Code = Code;
-        this.Description = Description;
-    }
-
     public string ToConsoleString()
     {
         if (Code == Errors.ErrorNone.Code)
-        {
             return "";
-        }
 
         StringBuilder stringBuilder = new();
         stringBuilder.AppendLine($"ERROR: {Description} ({Code})");
@@ -87,32 +93,28 @@ public record class ErrorEvent : IErrorEvent, IEvent
     }
 }
 
-public record class ErrorData : ErrorEvent, IError, IResult
+public record ErrorData : ErrorEvent, IError
 {
     private static readonly JsonEncodedText MetadataText = JsonEncodedText.Encode("metadata");
 
-    public Dictionary<string, object> Metadata { get; set; }
-
     public ErrorData(ErrorCode Code, string Description)
-        : base(Code, Description) { }
+        : base(Code, Description)
+    {
+    }
+
+    public Dictionary<string, object> Metadata { get; set; }
 
     public new string ToConsoleString()
     {
         if (Code == Errors.ErrorNone.Code)
-        {
             return "";
-        }
 
         StringBuilder stringBuilder = new();
         stringBuilder.AppendLine($"ERROR: {Description} ({Code})");
 
         if (Metadata?.Count > 0)
-        {
-            foreach ((var property, var value) in Metadata)
-            {
+            foreach (var (property, value) in Metadata)
                 stringBuilder.AppendLine($"{property}: {value}");
-            }
-        }
 
         return stringBuilder.ToString();
     }
@@ -139,26 +141,26 @@ public record class ErrorData : ErrorEvent, IError, IResult
 
 public partial class Errors
 {
-    public static readonly ErrorData ErrorNone = new(Code: ErrorCode.ERROR_NONE, Description: "");
+    public static readonly ErrorData ErrorNone = new(ErrorCode.ErrorNone, "");
 
     public static readonly ErrorData ErrorUnexpected = new(
-        Code: ErrorCode.ERROR_UNEXPECTED,
-        Description: "An unexpected error occurred"
+        ErrorCode.ErrorUnexpected,
+        "An unexpected error occurred"
     );
 
     public static readonly ErrorData ErrorOperationCancelled = new(
-        Code: ErrorCode.ERROR_OPERATION_CANCELLED,
-        Description: "An operation was cancelled"
+        ErrorCode.ErrorOperationCancelled,
+        "An operation was cancelled"
     );
 
     public static readonly ErrorData ErrorOperationInProgress = new(
-        Code: ErrorCode.ERROR_OPERATION_IN_PROGRESS,
-        Description: "The specified operation is in progress"
+        ErrorCode.ErrorOperationInProgress,
+        "The specified operation is in progress"
     );
 
     public static readonly ErrorData ErrorUnsupported = new(
-        Code: ErrorCode.ERROR_UNSUPPORTED,
-        Description: "This operation is unsupported"
+        ErrorCode.ErrorUnsupported,
+        "This operation is unsupported"
     );
 }
 
@@ -168,19 +170,15 @@ public static class ErrorExtensions
     {
         e.Metadata ??= [];
         if (!e.Metadata.TryAdd(key, value))
-        {
             e.Metadata[key] = value;
-        }
 
         return e;
     }
 
     public static ErrorData WrapError(this ErrorData e, Dictionary<string, object> dict)
     {
-        foreach ((var property, var value) in dict)
-        {
+        foreach (var (property, value) in dict)
             e.AddMetadata(property, value);
-        }
 
         return e;
     }
@@ -189,12 +187,12 @@ public static class ErrorExtensions
 [Serializable]
 public class ErrorException
 {
-    public string Message { get; } = "";
-    public System.Collections.IDictionary ExceptionMetadata { get; }
-
     public ErrorException(Exception inner)
     {
         Message = inner.Message;
         ExceptionMetadata = inner.Data;
     }
+
+    public string Message { get; } = "";
+    public IDictionary ExceptionMetadata { get; }
 }

@@ -1,6 +1,9 @@
 ﻿using System.Runtime.InteropServices;
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.Generic;
 using Bluetuith.Shim.Operations;
+using Bluetuith.Shim.Operations.Commands;
+using Bluetuith.Shim.Stack.Microsoft;
+using Bluetuith.Shim.Stack.Microsoft.Server;
 
 namespace Bluetuith.Shim;
 
@@ -9,8 +12,8 @@ internal static class Program
     public static void Main(string[] args)
     {
 #if WINDOWS10_0_19041_0_OR_GREATER
-        BluetoothStack.CurrentStack = new Bluetuith.Shim.Stack.Microsoft.MSFTStack();
-        ServerHost.Instance = new Bluetuith.Shim.Stack.Microsoft.MSFTServer();
+        BluetoothStack.CurrentStack = new MsftStack();
+        ServerHost.Instance = new MsftServer();
 #endif
 
         ServerHost.Instance.Relaunch();
@@ -24,9 +27,9 @@ internal static class Program
         }
     }
 
-    private static async void SignalHandler(PosixSignalContext context)
+    private static void SignalHandler(PosixSignalContext context)
     {
         context.Cancel = true;
-        await CommandExecutor.StopAsync();
+        CommandExecutor.StopAsync().Wait();
     }
 }

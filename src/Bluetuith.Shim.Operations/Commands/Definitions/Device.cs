@@ -1,7 +1,9 @@
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Operations.OutputStream;
 using ConsoleAppFramework;
 
-namespace Bluetuith.Shim.Operations;
+namespace Bluetuith.Shim.Operations.Commands.Definitions;
 
 /// <summary>Perform operations on a Bluetooth device.</summary>
 [RegisterCommands("device")]
@@ -11,7 +13,7 @@ public class Device
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public int Properties(ConsoleAppContext context, string address)
     {
-        (DeviceModel device, ErrorData error) = BluetoothStack.CurrentStack.GetDevice(
+        var (device, error) = BluetoothStack.CurrentStack.GetDevice(
             (OperationToken)context.State,
             address
         );
@@ -23,7 +25,7 @@ public class Device
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public int Disconnect(ConsoleAppContext context, string address)
     {
-        ErrorData error = BluetoothStack.CurrentStack.DisconnectDevice(address);
+        var error = BluetoothStack.CurrentStack.DisconnectDevice(address);
 
         return Output.Error(error, (OperationToken)context.State);
     }
@@ -32,7 +34,7 @@ public class Device
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> Remove(ConsoleAppContext context, string address)
     {
-        ErrorData error = await BluetoothStack.CurrentStack.RemoveDeviceAsync(address);
+        var error = await BluetoothStack.CurrentStack.RemoveDeviceAsync(address);
 
         return Output.Error(error, (OperationToken)context.State);
     }
@@ -42,12 +44,15 @@ public class Device
 public class Pairing
 {
     /// <summary>Pair with a Bluetooth device.</summary>
-    /// <param name="timeout">-t, The maximum amount of time in seconds that a pairing request can wait for a reply during authentication.</param>
+    /// <param name="timeout">
+    ///     -t, The maximum amount of time in seconds that a pairing request can wait for a reply during
+    ///     authentication.
+    /// </param>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     [Command("")]
     public async Task<int> Pair(ConsoleAppContext context, string address, int timeout = 10)
     {
-        ErrorData error = await BluetoothStack.CurrentStack.PairAsync(
+        var error = await BluetoothStack.CurrentStack.PairAsync(
             (OperationToken)context.State,
             address,
             timeout
@@ -61,7 +66,7 @@ public class Pairing
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public int Cancel(ConsoleAppContext context, string address)
     {
-        ErrorData error = BluetoothStack.CurrentStack.CancelPairing(address);
+        var error = BluetoothStack.CurrentStack.CancelPairing(address);
 
         return Output.Error(error, (OperationToken)context.State);
     }
@@ -70,15 +75,15 @@ public class Pairing
 [RegisterCommands("device connect")]
 public class Connection
 {
-    /// <summary>Connect to a Bluetooth device. If this command is used without any subcommands and an address parameter is specified, it will try to connect to the specified device automatically.</summary>
+    /// <summary>
+    ///     Connect to a Bluetooth device. If this command is used without any subcommands and an address parameter is
+    ///     specified, it will try to connect to the specified device automatically.
+    /// </summary>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     [Command("")]
     public int Connect(ConsoleAppContext context, string address)
     {
-        ErrorData error = BluetoothStack.CurrentStack.Connect(
-            (OperationToken)context.State,
-            address
-        );
+        var error = BluetoothStack.CurrentStack.Connect((OperationToken)context.State, address);
 
         return Output.Error(error, (OperationToken)context.State);
     }
@@ -88,7 +93,7 @@ public class Connection
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public int Profile(ConsoleAppContext context, string address, Guid uuid)
     {
-        ErrorData error = BluetoothStack.CurrentStack.ConnectProfile(
+        var error = BluetoothStack.CurrentStack.ConnectProfile(
             (OperationToken)context.State,
             address,
             uuid
@@ -105,7 +110,7 @@ public class A2dp
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> StartSession(ConsoleAppContext context, string address)
     {
-        ErrorData error = await BluetoothStack.CurrentStack.StartAudioSessionAsync(
+        var error = await BluetoothStack.CurrentStack.StartAudioSessionAsync(
             (OperationToken)context.State,
             address
         );
@@ -123,7 +128,7 @@ public class Opp
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> StartSession(ConsoleAppContext context, string address)
     {
-        ErrorData error = await BluetoothStack.CurrentStack.StartFileTransferSessionAsync(
+        var error = await BluetoothStack.CurrentStack.StartFileTransferSessionAsync(
             (OperationToken)context.State,
             address
         );
@@ -189,7 +194,7 @@ public class Pbap
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> GetAllContacts(ConsoleAppContext context, string address)
     {
-        (VcardModel vcard, ErrorData error) = await BluetoothStack.CurrentStack.GetAllContactsAsync(
+        var (vcard, error) = await BluetoothStack.CurrentStack.GetAllContactsAsync(
             (OperationToken)context.State,
             address
         );
@@ -201,11 +206,10 @@ public class Pbap
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> GetCombinedCalls(ConsoleAppContext context, string address)
     {
-        (VcardModel vcard, ErrorData error) =
-            await BluetoothStack.CurrentStack.GetCombinedCallHistoryAsync(
-                (OperationToken)context.State,
-                address
-            );
+        var (vcard, error) = await BluetoothStack.CurrentStack.GetCombinedCallHistoryAsync(
+            (OperationToken)context.State,
+            address
+        );
 
         return Output.Result(vcard, error, (OperationToken)context.State);
     }
@@ -214,11 +218,10 @@ public class Pbap
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> GetIncomingCalls(ConsoleAppContext context, string address)
     {
-        (VcardModel vcard, ErrorData error) =
-            await BluetoothStack.CurrentStack.GetIncomingCallsHistoryAsync(
-                (OperationToken)context.State,
-                address
-            );
+        var (vcard, error) = await BluetoothStack.CurrentStack.GetIncomingCallsHistoryAsync(
+            (OperationToken)context.State,
+            address
+        );
 
         return Output.Result(vcard, error, (OperationToken)context.State);
     }
@@ -227,11 +230,10 @@ public class Pbap
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> GetOutgoingCalls(ConsoleAppContext context, string address)
     {
-        (VcardModel vcard, ErrorData error) =
-            await BluetoothStack.CurrentStack.GetOutgoingCallsHistoryAsync(
-                (OperationToken)context.State,
-                address
-            );
+        var (vcard, error) = await BluetoothStack.CurrentStack.GetOutgoingCallsHistoryAsync(
+            (OperationToken)context.State,
+            address
+        );
 
         return Output.Result(vcard, error, (OperationToken)context.State);
     }
@@ -240,7 +242,7 @@ public class Pbap
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> GetMissedCalls(ConsoleAppContext context, string address)
     {
-        (VcardModel vcard, ErrorData error) = await BluetoothStack.CurrentStack.GetMissedCallsAsync(
+        var (vcard, error) = await BluetoothStack.CurrentStack.GetMissedCallsAsync(
             (OperationToken)context.State,
             address
         );
@@ -252,7 +254,7 @@ public class Pbap
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> GetSpeedDial(ConsoleAppContext context, string address)
     {
-        (VcardModel vcard, ErrorData error) = await BluetoothStack.CurrentStack.GetSpeedDialAsync(
+        var (vcard, error) = await BluetoothStack.CurrentStack.GetSpeedDialAsync(
             (OperationToken)context.State,
             address
         );
@@ -266,9 +268,15 @@ public class Pbap
 public class Map
 {
     /// <summary>Get a list of messages from a Bluetooth device.</summary>
-    /// <param name="folder">-f, A path to a folder in the remote device to list messages from, for example, 'telecom/msg/inbox'.</param>
+    /// <param name="folder">
+    ///     -f, A path to a folder in the remote device to list messages from, for example,
+    ///     'telecom/msg/inbox'.
+    /// </param>
     /// <param name="index">-i, The index of the message within a folder listing, from where messages can start being listed.</param>
-    /// <param name="count">-c, The maximum amount of messages to display. Setting bigger values will lead to longer download times.</param>
+    /// <param name="count">
+    ///     -c, The maximum amount of messages to display. Setting bigger values will lead to longer download
+    ///     times.
+    /// </param>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> GetMessages(
         ConsoleAppContext context,
@@ -278,14 +286,13 @@ public class Map
         ushort count = 1024
     )
     {
-        (MessageListingModel list, ErrorData error) =
-            await BluetoothStack.CurrentStack.GetMessagesAsync(
-                (OperationToken)context.State,
-                address,
-                folder,
-                index,
-                count
-            );
+        var (list, error) = await BluetoothStack.CurrentStack.GetMessagesAsync(
+            (OperationToken)context.State,
+            address,
+            folder,
+            index,
+            count
+        );
 
         return Output.Result(list, error, (OperationToken)context.State);
     }
@@ -299,12 +306,11 @@ public class Map
         string folder
     )
     {
-        (GenericResult<List<string>> folders, ErrorData error) =
-            await BluetoothStack.CurrentStack.GetMessageFoldersAsync(
-                (OperationToken)context.State,
-                address,
-                folder
-            );
+        var (folders, error) = await BluetoothStack.CurrentStack.GetMessageFoldersAsync(
+            (OperationToken)context.State,
+            address,
+            folder
+        );
 
         return Output.Result(folders, error, (OperationToken)context.State);
     }
@@ -314,12 +320,11 @@ public class Map
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> ShowMessage(ConsoleAppContext context, string address, string handle)
     {
-        (BMessagesModel message, ErrorData error) =
-            await BluetoothStack.CurrentStack.ShowMessageAsync(
-                (OperationToken)context.State,
-                address,
-                handle
-            );
+        var (message, error) = await BluetoothStack.CurrentStack.ShowMessageAsync(
+            (OperationToken)context.State,
+            address,
+            handle
+        );
 
         return Output.Result(message, error, (OperationToken)context.State);
     }
@@ -328,7 +333,7 @@ public class Map
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> StartNotificationServer(ConsoleAppContext context, string address)
     {
-        ErrorData error = await BluetoothStack.CurrentStack.StartNotificationEventServerAsync(
+        var error = await BluetoothStack.CurrentStack.StartNotificationEventServerAsync(
             (OperationToken)context.State,
             address
         );

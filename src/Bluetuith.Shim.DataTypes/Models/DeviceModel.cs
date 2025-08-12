@@ -1,8 +1,11 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Serializer;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Models;
 
 public interface IDevice : IDeviceEvent
 {
@@ -23,7 +26,7 @@ public interface IDevice : IDeviceEvent
     public bool LegacyPairing { get; set; }
 }
 
-public abstract record class DeviceBaseModel : DeviceEventBaseModel, IDevice
+public abstract record DeviceBaseModel : DeviceEventBaseModel, IDevice
 {
     public string Name { get; set; } = "";
     public string Alias { get; set; } = "";
@@ -31,10 +34,8 @@ public abstract record class DeviceBaseModel : DeviceEventBaseModel, IDevice
     public bool LegacyPairing { get; set; } = false;
 }
 
-public record class DeviceModel : DeviceBaseModel, IResult
+public record DeviceModel : DeviceBaseModel, IResult
 {
-    public DeviceModel() { }
-
     public string ToConsoleString()
     {
         StringBuilder stringBuilder = new();
@@ -61,25 +62,21 @@ public static class DeviceModelExtensions
     )
     {
         return new GenericResult<List<DeviceModel>>(
-            consoleFunc: () =>
+            () =>
             {
                 StringBuilder stringBuilder = new();
 
                 stringBuilder.AppendLine(consoleObject);
-                foreach (DeviceModel device in devices)
-                {
+                foreach (var device in devices)
                     stringBuilder.AppendLine(device.ToConsoleString());
-                }
 
                 return stringBuilder.ToString();
             },
-            jsonNodeFunc: (writer) =>
+            writer =>
             {
                 writer.WriteStartArray(jsonObject);
-                foreach (DeviceModel device in devices)
-                {
+                foreach (var device in devices)
                     (device as IDevice).SerializeAll(writer);
-                }
                 writer.WriteEndArray();
             }
         );

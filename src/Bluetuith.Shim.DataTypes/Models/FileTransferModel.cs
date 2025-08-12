@@ -1,16 +1,17 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Serializer;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Models;
 
-public interface IFileTransfer : IFileTransferEvent { }
+public interface IFileTransfer : IFileTransferEvent;
 
-public abstract record class FileTransferBaseModel : FileTransferEventBaseModel, IFileTransfer { }
+public abstract record FileTransferBaseModel : FileTransferEventBaseModel, IFileTransfer;
 
-public record class FileTransferModel : FileTransferBaseModel, IResult
+public record FileTransferModel : FileTransferBaseModel, IResult
 {
-    public FileTransferModel() { }
-
     public string ToConsoleString()
     {
         StringBuilder stringBuilder = new();

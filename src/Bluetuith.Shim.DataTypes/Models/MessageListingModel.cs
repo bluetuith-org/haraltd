@@ -1,22 +1,24 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Serializer;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Models;
 
-public record class MessageListingModel : IResult
+public record MessageListingModel : IResult
 {
-    private readonly List<MessageItem> messageList;
+    private readonly List<MessageItem> _messageList;
 
     public MessageListingModel(List<MessageItem> listing)
     {
-        messageList = listing;
+        _messageList = listing;
     }
 
     public string ToConsoleString()
     {
         StringBuilder stringBuilder = new();
-        foreach (MessageItem message in messageList)
+        foreach (var message in _messageList)
         {
             stringBuilder.AppendLine();
 
@@ -33,7 +35,7 @@ public record class MessageListingModel : IResult
                     ? stringBuilder.AppendLine(
                         $"Attachments: yes, {message.AttachmentSize / 1024} kb"
                     )
-                    : stringBuilder.AppendLine($"Attachments: no");
+                    : stringBuilder.AppendLine("Attachments: no");
         }
 
         return stringBuilder.ToString();
@@ -42,34 +44,26 @@ public record class MessageListingModel : IResult
     public void WriteJsonToStream(Utf8JsonWriter writer)
     {
         writer.WriteStartArray(SerializableContext.MessageListPropertyName);
-        foreach (MessageItem message in messageList)
-        {
+        foreach (var message in _messageList)
             message.SerializeSelected(writer);
-        }
         writer.WriteEndArray();
     }
 }
 
 public class MessageItem
 {
-    [JsonPropertyName("handle")]
-    public string Handle { get; set; }
+    [JsonPropertyName("handle")] public string Handle { get; set; }
 
-    [JsonPropertyName("attachment_size")]
-    public int AttachmentSize { get; set; }
+    [JsonPropertyName("attachment_size")] public int AttachmentSize { get; set; }
 
-    [JsonPropertyName("size")]
-    public int Size { get; set; }
+    [JsonPropertyName("size")] public int Size { get; set; }
 
-    [JsonPropertyName("date_time")]
-    public string DateTime { get; set; }
+    [JsonPropertyName("date_time")] public string DateTime { get; set; }
 
     [JsonPropertyName("recipient_addressing")]
     public string RecipientAddressing { get; set; }
 
-    [JsonPropertyName("reception_status")]
-    public string ReceptionStatus { get; set; }
+    [JsonPropertyName("reception_status")] public string ReceptionStatus { get; set; }
 
-    [JsonPropertyName("subject")]
-    public string Subject { get; set; }
+    [JsonPropertyName("subject")] public string Subject { get; set; }
 }

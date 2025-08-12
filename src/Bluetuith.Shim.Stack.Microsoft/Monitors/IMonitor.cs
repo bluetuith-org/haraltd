@@ -1,6 +1,6 @@
-﻿using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes.OperationToken;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Monitors;
 
 internal interface IMonitor : IWatcher
 {
@@ -19,5 +19,5 @@ internal enum MonitorName : byte
     DevicesBatteryMonitor = 4,
     AdapterPowerStateMonitor = 5,
     AdapterDiscoverableStateMonitor = 6,
-    OppServerStateMonitor = 7,
+    OppServerStateMonitor = 7
 }

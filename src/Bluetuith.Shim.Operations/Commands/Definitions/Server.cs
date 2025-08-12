@@ -1,7 +1,9 @@
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Operations.OutputStream;
 using ConsoleAppFramework;
 
-namespace Bluetuith.Shim.Operations;
+namespace Bluetuith.Shim.Operations.Commands.Definitions;
 
 /// <summary>Manage new/existing RPC server services.</summary>
 [RegisterCommands("server")]

@@ -1,6 +1,6 @@
-﻿using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.Stack.Microsoft.Devices.Profiles;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Monitors;
 
 internal partial class OppServerMonitor : AdapterStateMonitor
 {
@@ -11,29 +11,19 @@ internal partial class OppServerMonitor : AdapterStateMonitor
     public override bool IsRunning => IsCreated;
 
     public override bool IsCreated =>
-        radio != null && Opp.IsServerSessionExist(_token, AdapterAddress, out _);
-
-    public override void Create(OperationToken token)
-    {
-        base.Create(token);
-    }
+        Radio != null && Opp.IsServerSessionExist(Token, AdapterAddress, out _);
 
     public override bool Start()
     {
         if (base.Start())
-            Opp.StartFileTransferServerAsync(_token).GetAwaiter().GetResult();
+            Opp.StartFileTransferServerAsync(Token).GetAwaiter().GetResult();
 
         return IsCreated;
     }
 
     public override void Stop()
     {
-        Opp.StopFileTransferServer(_token);
+        Opp.StopFileTransferServer(Token);
         base.Stop();
-    }
-
-    public override void Dispose()
-    {
-        base.Dispose();
     }
 }

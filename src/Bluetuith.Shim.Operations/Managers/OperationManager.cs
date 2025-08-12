@@ -1,39 +1,27 @@
 ﻿using System.Collections.Concurrent;
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Operations.Commands;
 
-namespace Bluetuith.Shim.Operations;
+namespace Bluetuith.Shim.Operations.Managers;
 
 public static class OperationManager
 {
-    private class OperationInstance(
-        OperationToken newToken,
-        bool markedAsTask,
-        bool cancelOnDisconnect
-    )
-    {
-        public OperationToken token = newToken;
-        public bool IsTask = markedAsTask;
-        public bool CancelWhenDisconnected = cancelOnDisconnect;
-    }
-
-    private static readonly ConcurrentDictionary<long, OperationInstance> operations = new();
-    private static long _operationId = 0;
+    private static readonly ConcurrentDictionary<long, OperationInstance> Operations = new();
+    private static long _operationId;
 
     public static void ExecuteHandler(OperationToken token, string[] args)
     {
-        if (operations.TryAdd(token.OperationId, new(token, false, false)))
-        {
+        if (Operations.TryAdd(token.OperationId, new OperationInstance(token, false, false)))
             CommandParser.Parse(token, args);
-        }
     }
 
     public static bool GetToken(long operationId, out OperationToken token)
     {
         token = OperationToken.None;
 
-        if (operations.TryGetValue(operationId, out OperationInstance instance))
+        if (Operations.TryGetValue(operationId, out var instance))
         {
-            token = instance.token;
+            token = instance.Token;
             return true;
         }
 
@@ -42,37 +30,33 @@ public static class OperationManager
 
     public static void RemoveToken(OperationToken token)
     {
-        if (operations.TryGetValue(token.OperationId, out var instance) && !instance.IsTask)
+        if (Operations.TryGetValue(token.OperationId, out var instance) && !instance.IsTask)
             Cancel(token.OperationId);
     }
 
     public static void Cancel(long operationId)
     {
-        if (operations.TryRemove(operationId, out OperationInstance instance))
-            instance.token.ReleaseInternal();
+        if (Operations.TryRemove(operationId, out var instance))
+            instance.Token.ReleaseInternal();
     }
 
     public static async Task CancelAllAsync()
     {
-        foreach (OperationInstance instance in operations.Values)
-            instance.token.ReleaseInternal();
+        foreach (var instance in Operations.Values)
+            instance.Token.ReleaseInternal();
 
         await Task.Delay(100);
     }
 
     public static void CancelClientOperations(Guid clientId)
     {
-        foreach (OperationInstance instance in operations.Values)
-        {
+        foreach (var instance in Operations.Values)
             if (
                 instance.CancelWhenDisconnected
-                && instance.token.HasClientId
-                && instance.token.ClientId == clientId
+                && instance.Token.HasClientId
+                && instance.Token.ClientId == clientId
             )
-            {
-                instance.token.Release();
-            }
-        }
+                instance.Token.Release();
     }
 
     public static void SetOperationProperties(
@@ -81,7 +65,7 @@ public static class OperationManager
         bool cancelOnClientDisconnect = false
     )
     {
-        if (operations.TryGetValue(token.OperationId, out var instance))
+        if (Operations.TryGetValue(token.OperationId, out var instance))
         {
             instance.IsTask = isExtendedTask;
             instance.CancelWhenDisconnected = cancelOnClientDisconnect;
@@ -90,9 +74,9 @@ public static class OperationManager
 
     public static void WaitForExtendedOperations()
     {
-        foreach (OperationInstance instance in operations.Values)
+        foreach (var instance in Operations.Values)
             if (instance.IsTask)
-                instance.token.Wait();
+                instance.Token.Wait();
     }
 
     public static OperationToken GenerateToken(
@@ -110,20 +94,30 @@ public static class OperationManager
     {
         var operationId = ++_operationId;
 
-        if (token == default)
-            return new OperationToken(operationId, requestId);
-
-        return new OperationToken(operationId, requestId, token, Remove);
+        return token == CancellationToken.None
+            ? new OperationToken(operationId, requestId)
+            : new OperationToken(operationId, requestId, token, Remove);
     }
 
     public static void AddToken(OperationToken token)
     {
-        operations.TryAdd(token.OperationId, new OperationInstance(token, false, false));
+        Operations.TryAdd(token.OperationId, new OperationInstance(token, false, false));
     }
 
     public static void Remove(long operationId)
     {
-        operations.TryRemove(operationId, out _);
+        Operations.TryRemove(operationId, out _);
+    }
+
+    private class OperationInstance(
+        OperationToken newToken,
+        bool markedAsTask,
+        bool cancelOnDisconnect
+    )
+    {
+        public readonly OperationToken Token = newToken;
+        public bool CancelWhenDisconnected = cancelOnDisconnect;
+        public bool IsTask = markedAsTask;
     }
 }
 

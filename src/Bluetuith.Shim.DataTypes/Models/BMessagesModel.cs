@@ -1,34 +1,34 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Serializer;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Models;
 
-public record class BMessagesModel : IResult
+public record BMessagesModel : IResult
 {
-    private readonly List<BMessageItem> bMessageList;
+    private readonly List<BMessageItem> _bMessageList;
 
     public BMessagesModel(List<BMessageItem> listing)
     {
-        bMessageList = listing;
+        _bMessageList = listing;
     }
 
     public BMessagesModel(BMessageItem message)
     {
-        bMessageList = [message];
+        _bMessageList = [message];
     }
 
     public string ToConsoleString()
     {
         StringBuilder stringBuilder = new();
-        foreach (BMessageItem message in bMessageList)
+        foreach (var message in _bMessageList)
         {
             stringBuilder.AppendLine();
 
             if (message.Sender != null)
-            {
                 stringBuilder.AppendLine($"Sender: {message.Sender}");
-            }
 
             stringBuilder.AppendLine($"Folder: {message.Folder}, Status: {message.Status}");
             stringBuilder.AppendLine($"{message.Body}");
@@ -40,34 +40,25 @@ public record class BMessagesModel : IResult
     public void WriteJsonToStream(Utf8JsonWriter writer)
     {
         writer.WriteStartArray(SerializableContext.BMessagePropertyName);
-        foreach (BMessageItem message in bMessageList)
-        {
+        foreach (var message in _bMessageList)
             message.SerializeSelected(writer);
-        }
         writer.WriteEndArray();
     }
 }
 
 public class BMessageItem
 {
-    [JsonPropertyName("status")]
-    public string Status { get; set; }
+    [JsonPropertyName("status")] public string Status { get; set; }
 
-    [JsonPropertyName("type")]
-    public string Type { get; set; }
+    [JsonPropertyName("type")] public string Type { get; set; }
 
-    [JsonPropertyName("folder")]
-    public string Folder { get; set; }
+    [JsonPropertyName("folder")] public string Folder { get; set; }
 
-    [JsonPropertyName("charset")]
-    public string Charset { get; set; }
+    [JsonPropertyName("charset")] public string Charset { get; set; }
 
-    [JsonPropertyName("length")]
-    public int Length { get; set; }
+    [JsonPropertyName("length")] public int Length { get; set; }
 
-    [JsonPropertyName("sender")]
-    public string Sender { get; set; }
+    [JsonPropertyName("sender")] public string Sender { get; set; }
 
-    [JsonPropertyName("body")]
-    public string Body { get; set; }
+    [JsonPropertyName("body")] public string Body { get; set; }
 }

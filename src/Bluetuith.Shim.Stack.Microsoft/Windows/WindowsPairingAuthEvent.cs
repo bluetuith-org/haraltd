@@ -1,10 +1,13 @@
 ﻿using System.Text.Json;
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.DataTypes.Serializer;
 using Windows.Devices.Enumeration;
+using SerializableContext = Bluetuith.Shim.DataTypes.Serializer.SerializableContext;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Windows;
 
-internal record class WindowsPairingAuthEvent : PairingAuthenticationEvent
+internal record WindowsPairingAuthEvent : PairingAuthenticationEvent
 {
     private readonly DevicePairingKinds _devicePairingKinds;
 
@@ -20,59 +23,62 @@ internal record class WindowsPairingAuthEvent : PairingAuthenticationEvent
         _devicePairingKinds = pairingKind;
     }
 
-    private static AuthenticationReplyMethod GetReplyMethod(DevicePairingKinds pairingKinds) =>
-        pairingKinds switch
+    private static AuthenticationReplyMethod GetReplyMethod(DevicePairingKinds pairingKinds)
+    {
+        return pairingKinds switch
         {
             DevicePairingKinds.DisplayPin => AuthenticationReplyMethod.ReplyNone,
             DevicePairingKinds.ProvidePin => AuthenticationReplyMethod.ReplyNone,
-            _ => AuthenticationReplyMethod.ReplyYesNo,
+            _ => AuthenticationReplyMethod.ReplyYesNo
         };
+    }
 
-    private static AuthenticationEventType GetAuthEvent(DevicePairingKinds pairingKinds) =>
-        pairingKinds switch
+    private static AuthenticationEventType GetAuthEvent(DevicePairingKinds pairingKinds)
+    {
+        return pairingKinds switch
         {
             DevicePairingKinds.DisplayPin => AuthenticationEventType.DisplayPinCode,
 
             DevicePairingKinds.ConfirmOnly => AuthenticationEventType.AuthorizePairing,
 
             DevicePairingKinds.ConfirmPinMatch => AuthenticationEventType.ConfirmPasskey,
-            _ => AuthenticationEventType.AuthEventNone,
+            _ => AuthenticationEventType.AuthEventNone
         };
+    }
 
-    public override string ToConsoleString() =>
-        _devicePairingKinds switch
+    public override string ToConsoleString()
+    {
+        return _devicePairingKinds switch
         {
-            DevicePairingKinds.DisplayPin =>
-                $"[{_address}] Enter pin on device: ({TextToValidate})",
+            DevicePairingKinds.DisplayPin => $"[{Address}] Enter pin on device: ({TextToValidate})",
             DevicePairingKinds.ConfirmPinMatch =>
-                $"[{_address}] Confirm pairing with pin: {TextToValidate} (y/n)",
-            _ => $"[{_address}] Confirm pairing (y/n)",
+                $"[{Address}] Confirm pairing with pin: {TextToValidate} (y/n)",
+            _ => $"[{Address}] Confirm pairing (y/n)"
         };
+    }
 
     public override void WriteJsonToStream(Utf8JsonWriter writer)
     {
         var parameters = new PairingParameters
         {
             AuthId = CurrentAuthId,
-            Address = _address,
+            Address = Address,
             AuthEvent = GetAuthEvent(_devicePairingKinds),
             AuthReplyMethod = GetReplyMethod(_devicePairingKinds),
-            TimeoutMs = TimeoutMs,
+            TimeoutMs = TimeoutMs
         };
 
         if (!string.IsNullOrEmpty(TextToValidate))
             if (parameters.AuthEvent == AuthenticationEventType.DisplayPinCode)
-            {
                 parameters.Pincode = TextToValidate;
-            }
             else
-            {
                 try
                 {
                     parameters.Passkey = Convert.ToUInt32(TextToValidate);
                 }
-                catch { }
-            }
+                catch
+                {
+                }
 
         writer.WritePropertyName(SerializableContext.PairingAuthEventPropertyName);
         parameters.SerializeAll(writer);

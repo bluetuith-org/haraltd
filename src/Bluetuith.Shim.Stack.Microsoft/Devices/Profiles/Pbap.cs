@@ -1,13 +1,14 @@
-﻿using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Models;
+using Bluetuith.Shim.DataTypes.OperationToken;
 using GoodTimeStudio.MyPhone.OBEX.Pbap;
 using InTheHand.Net.Bluetooth;
-using Windows.Devices.Bluetooth;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Devices.Profiles;
 
 internal static class Pbap
 {
-    private static bool _clientInProgress = false;
+    private static bool _clientInProgress;
 
     internal static async Task<(VcardModel, ErrorData)> GetPhonebookAsync(
         OperationToken token,
@@ -16,24 +17,22 @@ internal static class Pbap
     )
     {
         if (_clientInProgress)
-        {
             return (
-                new(),
+                new VcardModel(),
                 Errors.ErrorOperationInProgress.WrapError(
-                    new()
+                    new Dictionary<string, object>
                     {
                         { "operation", "Phonebook Client" },
-                        { "exception", "A Phonebook client session is in progress" },
+                        { "exception", "A Phonebook client session is in progress" }
                     }
                 )
             );
-        }
 
         try
         {
             _clientInProgress = true;
 
-            using BluetoothDevice device = await DeviceUtils.GetBluetoothDeviceWithService(
+            using var device = await DeviceUtils.GetBluetoothDeviceWithService(
                 address,
                 BluetoothService.PhonebookAccessPse
             );
@@ -41,9 +40,7 @@ internal static class Pbap
 
             await pbap.ConnectAsync();
             if (pbap.ObexClient == null)
-            {
                 throw new Exception("PBAP ObexClient is null on connect");
-            }
 
             var phonebook = await pbap.ObexClient.PullPhoneBookAsync(phonebookId);
             return (new VcardModel(phonebookId, phonebook), Errors.ErrorNone);
@@ -51,8 +48,10 @@ internal static class Pbap
         catch (Exception e)
         {
             return (
-                new(),
-                Errors.ErrorDevicePhonebookClient.WrapError(new() { { "exception", e.Message } })
+                new VcardModel(),
+                Errors.ErrorDevicePhonebookClient.WrapError(
+                    new Dictionary<string, object> { { "exception", e.Message } }
+                )
             );
         }
         finally

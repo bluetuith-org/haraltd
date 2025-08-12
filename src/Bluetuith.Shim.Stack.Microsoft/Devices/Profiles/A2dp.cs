@@ -1,10 +1,12 @@
-﻿using Bluetuith.Shim.DataTypes;
-using Bluetuith.Shim.Operations;
+﻿using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Operations.Managers;
+using Bluetuith.Shim.Stack.Microsoft.Adapters;
 using InTheHand.Net;
 using Windows.Devices.Bluetooth;
 using Windows.Media.Audio;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Devices.Profiles;
 
 internal static class A2dp
 {
@@ -28,14 +30,12 @@ internal static class A2dp
 
             await audio.StartAsync();
 
-            AudioPlaybackConnectionOpenResult openResult = await audio.OpenAsync();
+            var openResult = await audio.OpenAsync();
             if (openResult.Status != AudioPlaybackConnectionOpenResultStatus.Success)
-            {
                 return Errors.ErrorDeviceA2dpClient.AddMetadata(
                     "audio-connection",
                     $"{openResult.Status}"
                 );
-            }
 
             OperationManager.SetOperationProperties(token);
 
@@ -48,7 +48,7 @@ internal static class A2dp
                         using var windowsDevice = await BluetoothDevice.FromBluetoothAddressAsync(
                             BluetoothAddress.Parse(address)
                         );
-                        windowsDevice.ConnectionStatusChanged += (s, e) =>
+                        windowsDevice.ConnectionStatusChanged += (s, _) =>
                         {
                             if (s.ConnectionStatus == BluetoothConnectionStatus.Disconnected)
                                 token.Release();
@@ -69,7 +69,9 @@ internal static class A2dp
         }
         catch (Exception e)
         {
-            return Errors.ErrorDeviceA2dpClient.WrapError(new() { { "exception", e.Message } });
+            return Errors.ErrorDeviceA2dpClient.WrapError(
+                new Dictionary<string, object> { { "exception", e.Message } }
+            );
         }
 
         return Errors.ErrorNone;

@@ -1,4 +1,4 @@
-﻿namespace Bluetuith.Shim.Stack.Microsoft;
+﻿namespace Bluetuith.Shim.Stack.Microsoft.Devices.ConnectionMethods;
 
 internal static class ConnectionSettings
 {

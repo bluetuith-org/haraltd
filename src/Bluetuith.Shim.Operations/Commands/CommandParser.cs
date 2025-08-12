@@ -1,13 +1,38 @@
-﻿using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Operations.Managers;
+using Bluetuith.Shim.Operations.OutputStream;
 using ConsoleAppFramework;
 using DotNext;
 
-namespace Bluetuith.Shim.Operations;
+namespace Bluetuith.Shim.Operations.Commands;
 
 public static class CommandParser
 {
-    private static readonly ConsoleApp.ConsoleAppBuilder app = ConsoleApp.Create();
-    private static readonly UserDataSlot<OperationToken> slot = new();
+    private static readonly ConsoleApp.ConsoleAppBuilder App = ConsoleApp.Create();
+    private static readonly UserDataSlot<OperationToken> Slot = new();
+
+    static CommandParser()
+    {
+        App.UseFilter<ParserFilter>();
+
+        if (Output.IsOnSocket)
+        {
+            ConsoleApp.Log = static delegate { };
+            ConsoleApp.LogError = static msg =>
+                Output.Event(
+                    Errors.ErrorUnexpected.AddMetadata("command_error", msg),
+                    OperationToken.None
+                );
+        }
+    }
+
+    public static void Parse(OperationToken token, string[] args)
+    {
+        args.GetUserData().Set(Slot, token);
+
+        App.Run(args);
+    }
 
     internal sealed class ParserFilter(ConsoleAppFilter next) : ConsoleAppFilter(next)
     {
@@ -16,12 +41,12 @@ public static class CommandParser
             CancellationToken cancellationToken
         )
         {
-            OperationToken token = OperationToken.None;
-            int exitCode = 0;
+            var token = OperationToken.None;
+            var exitCode = 0;
 
             try
             {
-                if (!context.Arguments.GetUserData().TryGet(slot, out token))
+                if (!context.Arguments.GetUserData().TryGet(Slot, out token))
                     throw new InvalidDataException(
                         "Token was not found from the attached data slot"
                     );
@@ -47,27 +72,5 @@ public static class CommandParser
                     Environment.ExitCode = exitCode;
             }
         }
-    }
-
-    static CommandParser()
-    {
-        app.UseFilter<ParserFilter>();
-
-        if (Output.IsOnSocket)
-        {
-            ConsoleApp.Log = static delegate { };
-            ConsoleApp.LogError = static msg =>
-                Output.Event(
-                    Errors.ErrorUnexpected.AddMetadata("command_error", msg),
-                    OperationToken.None
-                );
-        }
-    }
-
-    public static void Parse(OperationToken token, string[] args)
-    {
-        args.GetUserData().Set(slot, token);
-
-        app.Run(args);
     }
 }

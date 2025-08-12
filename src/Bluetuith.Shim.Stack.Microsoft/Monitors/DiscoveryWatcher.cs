@@ -1,41 +1,34 @@
 ﻿using System.Collections.Concurrent;
-using System.Collections.Frozen;
-using Bluetuith.Shim.DataTypes;
-using Bluetuith.Shim.Operations;
+using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Operations.Managers;
+using Bluetuith.Shim.Operations.OutputStream;
+using Bluetuith.Shim.Stack.Microsoft.Adapters;
 using Windows.Devices.Bluetooth;
-using static Bluetuith.Shim.DataTypes.IEvent;
+using static Bluetuith.Shim.DataTypes.Generic.IEvent;
 using Lock = DotNext.Threading.Lock;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Monitors;
 
 internal static partial class DiscoveryWatcher
 {
-    private partial record class DiscoveryClient(
-        OperationToken Token,
-        DevicesWatcher.Subscriber Subscriber
-    ) : IDisposable
-    {
-        public void Dispose()
-        {
-            Subscriber?.Dispose();
-            Token.Release();
-        }
-    }
+    private static readonly ConcurrentDictionary<Guid, DiscoveryClient> Clients = [];
 
-    private static readonly ConcurrentDictionary<Guid, DiscoveryClient> clients = [];
-    private static DevicesWatcher monitor = new(
+    private static DevicesWatcher _monitor = new(
         BluetoothDevice.GetDeviceSelectorFromPairingState(false)
     );
-    private static readonly Lock @lock = Lock.Semaphore(new(1, 1));
+
+    private static readonly Lock Lock = Lock.Semaphore(new SemaphoreSlim(1, 1));
 
     public static bool IsStarted(OperationToken token)
     {
-        return clients.ContainsKey(token.ClientId);
+        return Clients.ContainsKey(token.ClientId);
     }
 
     internal static ErrorData Start(OperationToken token)
     {
-        if (!@lock.TryAcquire(out var holder))
+        if (!Lock.TryAcquire(out var holder))
             return Errors.ErrorOperationInProgress;
 
         using var sem = holder;
@@ -51,39 +44,37 @@ internal static partial class DiscoveryWatcher
                 "Token does not contain a client ID"
             );
 
-        if (clients.ContainsKey(token.ClientId))
+        if (Clients.ContainsKey(token.ClientId))
             return Errors.ErrorDeviceDiscovery.AddMetadata(
                 "exception",
                 "Device discovery is already running"
             );
 
-        clients.TryAdd(token.ClientId, new DiscoveryClient(token, Subscriber(monitor, token)));
+        Clients.TryAdd(token.ClientId, new DiscoveryClient(token, Subscriber(_monitor, token)));
 
         try
         {
-            if (!monitor.Start())
+            if (!_monitor.Start())
                 throw new Exception("The device discovery service is being reset");
 
             Output.ClientEvent(
                 adapterEvent with
                 {
                     OptionDiscovering = true,
-                    Action = EventAction.Updated,
+                    Action = EventAction.Updated
                 },
                 token
             );
         }
         catch (Exception e)
         {
-            StopInternal(out var _, token, true, true, false);
+            StopInternal(out _, token, true, true, false);
             return Errors.ErrorDeviceDiscovery.AddMetadata("exception", e.Message);
         }
 
-        foreach (var device in monitor.CurrentDevices)
-        {
+        foreach (var device in _monitor.CurrentDevices)
             if (device.OptionPaired.HasValue && !device.OptionPaired.Value)
                 Output.ClientEvent(device with { Action = EventAction.Added }, token);
-        }
 
         OperationManager.SetOperationProperties(token, true, true);
 
@@ -95,8 +86,8 @@ internal static partial class DiscoveryWatcher
         if (!StopInternal(out var error, token, false))
             return error;
 
-        if (clients.IsEmpty)
-            monitor.Stop();
+        if (Clients.IsEmpty)
+            _monitor.Stop();
 
         return Errors.ErrorNone;
     }
@@ -110,51 +101,47 @@ internal static partial class DiscoveryWatcher
     )
     {
         err = Errors.ErrorOperationInProgress;
-        if (!@lock.TryAcquire(out var holder))
+        if (!Lock.TryAcquire(out var holder))
             return false;
 
         using var _ = holder;
 
         err = Errors.ErrorUnexpected.AddMetadata("error", "no client ID found");
-        if (!clients.TryRemove(token.ClientId, out var client) && !forceStop)
+        if (!Clients.TryRemove(token.ClientId, out var client) && !forceStop)
             return false;
 
         var adapterEvent = new AdapterEvent();
         var error = adapterEvent.MergeRadioEventData();
 
-        foreach (var c in clearAllClients ? clients.Values : [client])
+        foreach (var c in clearAllClients ? Clients.Values : [client])
         {
             if (sendEvent)
             {
-                foreach (var device in monitor.CurrentDevices)
-                {
+                foreach (var device in _monitor.CurrentDevices)
                     if (device.OptionPaired.HasValue && !device.OptionPaired.Value)
                         Output.ClientEvent(device with { Action = EventAction.Removed }, c.Token);
-                }
 
                 if (error == Errors.ErrorNone)
-                {
                     Output.ClientEvent(
                         adapterEvent with
                         {
                             OptionDiscovering = false,
-                            Action = EventAction.Updated,
+                            Action = EventAction.Updated
                         },
                         c.Token
                     );
-                }
             }
 
             c.Dispose();
         }
 
         if (clearAllClients)
-            clients.Clear();
+            Clients.Clear();
 
         if (forceStop)
         {
-            monitor.Dispose();
-            monitor = new(BluetoothDevice.GetDeviceSelectorFromPairingState(false));
+            _monitor.Dispose();
+            _monitor = new DevicesWatcher(BluetoothDevice.GetDeviceSelectorFromPairingState(false));
         }
 
         return true;
@@ -173,7 +160,7 @@ internal static partial class DiscoveryWatcher
                     Output.ClientEvent(info, tok);
             },
 
-            OnUpdated = static (oldInfo, newInfo, tok) =>
+            OnUpdated = static (_, newInfo, tok) =>
             {
                 if (newInfo.OptionPaired.HasValue && !newInfo.OptionPaired.Value)
                     Output.ClientEvent(newInfo, tok);
@@ -183,7 +170,19 @@ internal static partial class DiscoveryWatcher
             {
                 if (info.OptionPaired.HasValue && !info.OptionPaired.Value)
                     Output.ClientEvent(info, tok);
-            },
+            }
         };
+    }
+
+    private partial record DiscoveryClient(
+        OperationToken Token,
+        DevicesWatcher.Subscriber NewSubscriber
+    ) : IDisposable
+    {
+        public void Dispose()
+        {
+            NewSubscriber?.Dispose();
+            Token.Release();
+        }
     }
 }

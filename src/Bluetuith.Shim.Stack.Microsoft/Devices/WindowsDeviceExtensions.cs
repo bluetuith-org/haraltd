@@ -1,4 +1,7 @@
-﻿using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Models;
+using Bluetuith.Shim.Stack.Microsoft.Adapters;
+using Bluetuith.Shim.Stack.Microsoft.Windows;
 using InTheHand.Net;
 using InTheHand.Net.Bluetooth;
 using Microsoft.Win32;
@@ -6,7 +9,7 @@ using Nefarius.Utilities.DeviceManagement.PnP;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Enumeration;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Devices;
 
 internal static class WindowsDeviceExtensions
 {
@@ -21,12 +24,9 @@ internal static class WindowsDeviceExtensions
                 .FromBluetoothAddressAsync(parsedAddr)
                 .GetAwaiter()
                 .GetResult();
-            if (device == null)
-            {
-                return Errors.ErrorDeviceNotFound;
-            }
-
-            return device.MergeBluetoothDevice(windowsDevice, true);
+            return device == null
+                ? Errors.ErrorDeviceNotFound
+                : device.MergeBluetoothDevice(windowsDevice, true);
         }
         catch (Exception ex)
         {
@@ -59,10 +59,9 @@ internal static class WindowsDeviceExtensions
             if (
                 appendServices
                 && DeviceUtils.GetServicesFromSdpRecords(windowsDevice.SdpRecords)
-                    is Guid[] services
-                && services.Length > 0
+                    is { Length: > 0 } services
             )
-                device.OptionUUIDs = services;
+                device.OptionUuiDs = services;
 
             device.MergeDeviceInformation(windowsDevice.DeviceInformation);
         }
@@ -90,8 +89,7 @@ internal static class WindowsDeviceExtensions
                 .FromIdAsync(deviceInformation.Id)
                 .GetAwaiter()
                 .GetResult();
-            return device.MergeBluetoothDevice<T>(windowsDevice, appendServices)
-                == Errors.ErrorNone;
+            return device.MergeBluetoothDevice(windowsDevice, appendServices) == Errors.ErrorNone;
         }
 
         if (
@@ -118,7 +116,7 @@ internal static class WindowsDeviceExtensions
                     break;
 
                 case "System.Devices.Aep.SignalStrength":
-                    device.OptionRSSI = Convert.ToInt16(value);
+                    device.OptionRssi = Convert.ToInt16(value);
                     break;
 
                 case "System.Devices.Aep.IsConnected":
@@ -148,7 +146,7 @@ internal static class WindowsDeviceExtensions
 
             device.Address = deviceAddress;
             device.AssociatedAdapter = AdapterModelExt.CurrentAddress;
-            device.Class = pnpDevice.GetProperty<UInt32>(WindowsPnPInformation.Device.Class);
+            device.Class = pnpDevice.GetProperty<uint>(WindowsPnPInformation.Device.Class);
 
             device.OptionConnected = pnpDevice.GetProperty<bool>(
                 WindowsPnPInformation.Device.IsConnected
@@ -156,29 +154,20 @@ internal static class WindowsDeviceExtensions
             device.OptionPaired = device.OptionBonded = true;
 
             var uuids = new List<Guid>();
-            using (
-                RegistryKey key = Registry.LocalMachine.OpenSubKey(
-                    WindowsPnPInformation.Device.ServicesRegistryPath(
-                        adapterAddress,
-                        deviceAddress
-                    ),
-                    false
-                )
-            )
+            using var key = Registry.LocalMachine.OpenSubKey(
+                WindowsPnPInformation.Device.ServicesRegistryPath(adapterAddress, deviceAddress),
+                false
+            );
+            foreach (var services in key?.GetSubKeyNames())
             {
-                foreach (var services in key?.GetSubKeyNames())
-                {
-                    if (services is null)
-                        continue;
+                if (services is null)
+                    continue;
 
-                    uuids.Add(Guid.Parse(services));
-                }
-
-                if (uuids.Count > 0)
-                {
-                    device.OptionUUIDs = uuids.ToArray();
-                }
+                uuids.Add(Guid.Parse(services));
             }
+
+            if (uuids.Count > 0)
+                device.OptionUuiDs = uuids.ToArray();
         }
         catch (Exception e)
         {

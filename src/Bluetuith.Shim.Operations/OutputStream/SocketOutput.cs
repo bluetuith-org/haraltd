@@ -4,27 +4,27 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Operations.Managers;
 using DotNext.Collections.Generic;
 using DotNext.IO;
 using DotNext.Threading;
 using NetCoreServer;
-using static Bluetuith.Shim.Operations.AuthenticationManager;
+using static Bluetuith.Shim.Operations.Managers.AuthenticationManager;
 
-namespace Bluetuith.Shim.Operations;
+namespace Bluetuith.Shim.Operations.OutputStream;
 
 internal sealed class SocketOutput : OutputBase
 {
+    private readonly OperationToken _operationToken;
     private readonly string _socketPath;
     private readonly SocketServer _socketServer;
-    private readonly OperationToken _operationToken;
 
     internal SocketOutput(string socketPath, OperationToken token)
     {
-        if (_socketServer != null && _socketServer.IsStarted)
-        {
+        if (_socketServer is { IsStarted: true })
             throw new ArgumentException("The socket server has already started");
-        }
 
         var socketDir =
             Path.GetDirectoryName(socketPath)
@@ -68,7 +68,7 @@ internal sealed class SocketOutput : OutputBase
         AuthAgentType authAgentType = AuthAgentType.None
     )
     {
-        if (AuthenticationManager.AddEvent(token, authEvent, authAgentType))
+        if (AddEvent(token, authEvent, authAgentType))
             if (!SendMarshalledEvent(authEvent, token, true))
                 SetAuthenticationResponse(token, authEvent.CurrentAuthId, "");
     }
@@ -80,7 +80,7 @@ internal sealed class SocketOutput : OutputBase
         string response
     )
     {
-        return AuthenticationManager.SetEventResponse(token, authId, response);
+        return SetEventResponse(token, authId, response);
     }
 
 #nullable disable
@@ -126,21 +126,15 @@ internal sealed class SocketOutput : OutputBase
     }
 }
 
-internal partial class SocketSession(SocketServer server) : UdsSession(server)
+internal class SocketSession(SocketServer server) : UdsSession(server)
 {
-    record class ParseRequest
-    {
-        public Request ClientRequest;
-        public OperationToken Token;
-    }
-
     protected override void OnReceived(byte[] buffer, long offset, long size)
     {
         try
         {
             foreach (
                 var request in JsonSerializer
-                    .DeserializeAsyncEnumerable(
+                    .DeserializeAsyncEnumerable<Request>(
                         new ReadOnlySequence<byte>(buffer[(int)offset..(int)size]).AsStream(),
                         RequestSerializable.Default.Request,
                         true
@@ -152,7 +146,7 @@ internal partial class SocketSession(SocketServer server) : UdsSession(server)
 
                 Task.Factory.StartNew(
                     Execute,
-                    new ParseRequest() { ClientRequest = request, Token = token }
+                    new ParseRequest { ClientRequest = request, Token = token }
                 );
             }
         }
@@ -173,25 +167,34 @@ internal partial class SocketSession(SocketServer server) : UdsSession(server)
 
     protected override void OnDisconnected()
     {
-        OperationManager.CancelClientOperations(this.Id);
-        AuthenticationManager.RemoveAgentsAndEvents(this.Id);
+        OperationManager.CancelClientOperations(Id);
+        RemoveAgentsAndEvents(Id);
     }
 
     protected override void OnError(SocketError error)
     {
         Console.WriteLine($"Socket error: Could not send reply: {error}");
     }
+
+    private record ParseRequest
+    {
+        public Request ClientRequest;
+        public OperationToken Token;
+    }
 }
 
-internal partial class SocketServer : UdsServer
+internal class SocketServer : UdsServer
 {
-    private static readonly ConcurrentDictionary<Guid, SessionStream> sessionStreams = new();
-    private static readonly Func<IEnumerable<SessionStream>> values = (
-        sessionStreams as IDictionary<Guid, SessionStream>
+    private static readonly ConcurrentDictionary<Guid, SessionStream> SessionStreams = new();
+
+    private static readonly Func<IEnumerable<SessionStream>> Values = (
+        SessionStreams as IDictionary<Guid, SessionStream>
     ).ValuesGetter();
 
     internal SocketServer(string path)
-        : base(path) { }
+        : base(path)
+    {
+    }
 
     internal bool SendReply<T>(OperationToken token, bool clientOnlyData, T marshaller)
         where T : IMarshaller, allows ref struct
@@ -199,14 +202,14 @@ internal partial class SocketServer : UdsServer
         if (!IsStarted)
             return false;
 
-        int unsent = 0;
+        var unsent = 0;
         List<Exception> socketExceptions = null;
 
         try
         {
-            bool foundClient = false;
+            var foundClient = false;
 
-            foreach (var session in values())
+            foreach (var session in Values())
             {
                 if (session == null || session.IsDisposed)
                     continue;
@@ -259,12 +262,12 @@ internal partial class SocketServer : UdsServer
 
     protected override void OnConnecting(UdsSession session)
     {
-        sessionStreams.TryAdd(session.Id, new SessionStream(session));
+        SessionStreams.TryAdd(session.Id, new SessionStream(session));
     }
 
     protected override void OnDisconnecting(UdsSession session)
     {
-        if (sessionStreams.TryRemove(session.Id, out var sessionStream))
+        if (SessionStreams.TryRemove(session.Id, out var sessionStream))
             sessionStream.Dispose();
     }
 
@@ -275,36 +278,27 @@ internal partial class SocketServer : UdsServer
 
     private class SessionStream
     {
+        private static readonly byte[] NewLine = "\n"u8.ToArray();
+        private static readonly JsonWriterOptions Options = new() { SkipValidation = true };
         private UdsSession _session;
         private NetworkStream _stream;
-        private Utf8JsonWriter _writer;
 
-        private static readonly byte[] NewLine = Encoding.UTF8.GetBytes("\n");
-        private static readonly JsonWriterOptions _options = new() { SkipValidation = true };
+        public SessionStream(UdsSession session)
+        {
+            Initialize(session);
+        }
 
-        public Utf8JsonWriter Writer
-        {
-            get => _writer;
-        }
-        public bool IsDisposed
-        {
-            get => _session.IsDisposed || _session.IsSocketDisposed;
-        }
-        public Guid Id
-        {
-            get => _session.Id;
-        }
+        public Utf8JsonWriter Writer { get; private set; }
+
+        public bool IsDisposed => _session.IsDisposed || _session.IsSocketDisposed;
+
+        public Guid Id => _session.Id;
 
         private void Initialize(UdsSession session)
         {
             _session = session;
             _stream = new NetworkStream(_session.Socket, FileAccess.Write, false);
-            _writer = new Utf8JsonWriter(_stream, _options);
-        }
-
-        public SessionStream(UdsSession session)
-        {
-            Initialize(session);
+            Writer = new Utf8JsonWriter(_stream, Options);
         }
 
         public bool Reset()
@@ -314,14 +308,14 @@ internal partial class SocketServer : UdsServer
 
             try
             {
-                _writer?.Dispose();
+                Writer?.Dispose();
                 _stream?.Dispose();
 
                 Initialize(_session);
             }
             catch
             {
-                sessionStreams.TryRemove(Id, out _);
+                SessionStreams.TryRemove(Id, out _);
                 return false;
             }
 
@@ -330,31 +324,31 @@ internal partial class SocketServer : UdsServer
 
         public void Flush()
         {
-            _writer.Flush();
+            Writer.Flush();
             _stream.Write(NewLine, 0, 1);
 
-            _writer.Reset();
+            Writer.Reset();
         }
 
         public void Dispose()
         {
             try
             {
-                _writer.Dispose();
+                Writer.Dispose();
                 _stream.Dispose();
             }
-            catch { }
+            catch
+            {
+            }
         }
     }
 }
 
 internal record struct Request
 {
-    [JsonPropertyName("command")]
-    public string[] Command { get; set; }
+    [JsonPropertyName("command")] public string[] Command { get; set; }
 
-    [JsonPropertyName("request_id")]
-    public long RequestId { get; set; }
+    [JsonPropertyName("request_id")] public long RequestId { get; set; }
 }
 
 [JsonSerializable(typeof(Request))]
@@ -362,12 +356,12 @@ internal record struct Request
     GenerationMode = JsonSourceGenerationMode.Metadata,
     DefaultBufferSize = 8192
 )]
-internal partial class RequestSerializable : JsonSerializerContext { }
+internal partial class RequestSerializable : JsonSerializerContext;
 
 internal class SocketErrors : Errors
 {
-    internal static ErrorData ErrorJsonRequestParse = new(
-        Code: new ErrorCode("ERROR_JSON_REQUEST_PARSE", -2500),
-        Description: "An error occurred while parsing the JSON request"
+    internal static readonly ErrorData ErrorJsonRequestParse = new(
+        new ErrorCode("ERROR_JSON_REQUEST_PARSE", -2500),
+        "An error occurred while parsing the JSON request"
     );
 }

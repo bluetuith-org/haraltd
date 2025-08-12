@@ -6,7 +6,8 @@
  */
 
 using System.Runtime.CompilerServices;
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.Models;
 using Windows.Devices.Enumeration;
 using Windows.Win32;
 using Windows.Win32.Media.Audio;
@@ -14,7 +15,7 @@ using Windows.Win32.Media.KernelStreaming;
 using Windows.Win32.System.Com;
 using Windows.Win32.UI.Shell.PropertiesSystem;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Devices.ConnectionMethods;
 
 internal static class AudioEndpoints
 {
@@ -57,9 +58,9 @@ internal static class AudioDevices
             enumerator->EnumAudioEndpoints(
                 EDataFlow.eAll,
                 DEVICE_STATE.DEVICE_STATE_ACTIVE
-                    | DEVICE_STATE.DEVICE_STATE_DISABLED
-                    | DEVICE_STATE.DEVICE_STATE_UNPLUGGED
-                    | DEVICE_STATE.DEVICE_STATE_NOTPRESENT,
+                | DEVICE_STATE.DEVICE_STATE_DISABLED
+                | DEVICE_STATE.DEVICE_STATE_UNPLUGGED
+                | DEVICE_STATE.DEVICE_STATE_NOTPRESENT,
                 &pDevices
             ) != 0
         )
@@ -92,18 +93,15 @@ internal static class AudioDevices
                     if (!GetKsControl(part, enumerator, out var kscontrol))
                         continue;
 
-                    using (var audioDevice = new AudioDevice(device, kscontrol))
-                    {
-                        if (!audioDevice.Initialize() || audioDevice.ContainerId != containerId)
-                            continue;
+                    using var audioDevice = new AudioDevice(device, kscontrol);
+                    if (!audioDevice.Initialize() || audioDevice.ContainerId != containerId)
+                        continue;
 
-                        if (audioDevice.Connect())
-                            connectedCount++;
-                    }
+                    if (audioDevice.Connect())
+                        connectedCount++;
                 }
                 catch
                 {
-                    continue;
                 }
                 finally
                 {
@@ -139,8 +137,8 @@ internal static class AudioDevices
 
         IMMDevice* pDevice = null;
 
-        bool deviceSet = false;
-        bool hasConnectors = false;
+        var deviceSet = false;
+        var hasConnectors = false;
 
         try
         {
@@ -187,8 +185,8 @@ internal static class AudioDevices
         IConnector* pConnectFrom = null;
         IConnector* pConTo = null;
 
-        bool connFrom = false;
-        bool connTo = false;
+        var connFrom = false;
+        var connTo = false;
 
         try
         {
@@ -228,8 +226,8 @@ internal static class AudioDevices
         IDeviceTopology* pTopology = null;
         IMMDevice* pDev = null;
 
-        bool topologySet = false;
-        bool deviceSet = false;
+        var topologySet = false;
+        var deviceSet = false;
 
         try
         {
@@ -277,48 +275,62 @@ internal static class AudioDevices
 
 internal sealed unsafe partial class AudioDevice : IDisposable
 {
-    private IMMDevice* device;
-    private IKsControl* ksControl;
-
-    internal Guid ContainerId;
-
     private static readonly PROPERTYKEY ContainerIdProperty = new()
     {
         fmtid = new Guid("{8C7ED206-3F8A-4827-B3AB-AE9E1FAEFC6C}"),
-        pid = 2,
+        pid = 2
     };
 
     private static readonly Guid KsPropSetId = new("7fa06c40-b8f6-4c7e-8556-e8c33a12e54d");
+
+    internal Guid ContainerId;
+    private IMMDevice* _device;
+    private IKsControl* _ksControl;
+
+    internal AudioDevice(IMMDevice* device, IKsControl* ksControl)
+    {
+        _ksControl = ksControl;
+        _device = device;
+    }
 
     internal bool IsConnected
     {
         get
         {
-            if (device->GetState(out var state) == 0)
+            if (_device->GetState(out var state) == 0)
                 return state == DEVICE_STATE.DEVICE_STATE_ACTIVE;
 
             return false;
         }
     }
 
-    internal unsafe AudioDevice(IMMDevice* device, IKsControl* ksControl)
+    public void Dispose()
     {
-        this.ksControl = ksControl;
-        this.device = device;
+        if (_ksControl != null)
+        {
+            _ksControl->Release();
+            _ksControl = null;
+        }
+
+        if (_device != null)
+        {
+            _device->Release();
+            _device = null;
+        }
     }
 
-    internal unsafe bool Initialize()
+    internal bool Initialize()
     {
-        if (device == null || ksControl == null)
+        if (_device == null || _ksControl == null)
             return false;
 
         IPropertyStore* pProperties = null;
 
-        bool propertyStoreSet = false;
+        var propertyStoreSet = false;
 
         try
         {
-            if (device->OpenPropertyStore(STGM.STGM_READ, &pProperties) != 0)
+            if (_device->OpenPropertyStore(STGM.STGM_READ, &pProperties) != 0)
                 return false;
 
             propertyStoreSet = true;
@@ -326,10 +338,7 @@ internal sealed unsafe partial class AudioDevice : IDisposable
             if (pProperties->GetValue(ContainerIdProperty, out var variant) != 0)
                 return false;
 
-            if (PInvoke.PropVariantToGUID(variant, out ContainerId) != 0)
-                return false;
-
-            return true;
+            return PInvoke.PropVariantToGUID(variant, out ContainerId) == 0;
         }
         finally
         {
@@ -340,12 +349,12 @@ internal sealed unsafe partial class AudioDevice : IDisposable
 
     internal bool Connect()
     {
-        return GetKsProperty(KsPropertyId.KSPROPERTY_ONESHOT_RECONNECT);
+        return GetKsProperty(KsPropertyId.KspropertyOneshotReconnect);
     }
 
     internal bool Disconnect()
     {
-        return GetKsProperty(KsPropertyId.KSPROPERTY_ONESHOT_DISCONNECT);
+        return GetKsProperty(KsPropertyId.KspropertyOneshotDisconnect);
     }
 
     private bool GetKsProperty(KsPropertyId property)
@@ -353,42 +362,27 @@ internal sealed unsafe partial class AudioDevice : IDisposable
         var ksIdentifier = new KSIDENTIFIER();
         ksIdentifier.Anonymous.Anonymous.Id = (uint)property;
         ksIdentifier.Anonymous.Anonymous.Set = KsPropSetId;
-        ksIdentifier.Anonymous.Anonymous.Flags = (uint)KsPropertyKind.KSPROPERTY_TYPE_GET;
+        ksIdentifier.Anonymous.Anonymous.Flags = (uint)KsPropertyKind.KspropertyTypeGet;
 
-        return ksControl->KsProperty(
-                ksIdentifier,
-                (uint)Unsafe.SizeOf<KSIDENTIFIER._Anonymous_e__Union._Anonymous_e__Struct>(),
-                null,
-                0,
-                out _
-            ) == 0;
-    }
-
-    public void Dispose()
-    {
-        if (ksControl != null)
-        {
-            ksControl->Release();
-            ksControl = null;
-        }
-
-        if (device != null)
-        {
-            device->Release();
-            device = null;
-        }
+        return _ksControl->KsProperty(
+            ksIdentifier,
+            (uint)Unsafe.SizeOf<KSIDENTIFIER._Anonymous_e__Union._Anonymous_e__Struct>(),
+            null,
+            0,
+            out _
+        ) == 0;
     }
 }
 
 internal enum KsPropertyKind : uint
 {
-    KSPROPERTY_TYPE_GET = 0x00000001,
-    KSPROPERTY_TYPE_SET = 0x00000002,
-    KSPROPERTY_TYPE_TOPOLOGY = 0x10000000,
+    KspropertyTypeGet = 0x00000001,
+    KspropertyTypeSet = 0x00000002,
+    KspropertyTypeTopology = 0x10000000
 }
 
 internal enum KsPropertyId : uint
 {
-    KSPROPERTY_ONESHOT_RECONNECT = 0,
-    KSPROPERTY_ONESHOT_DISCONNECT = 1,
+    KspropertyOneshotReconnect = 0,
+    KspropertyOneshotDisconnect = 1
 }

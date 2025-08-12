@@ -1,14 +1,10 @@
 ﻿using System.Text;
 
-namespace Bluetuith.Shim.DataTypes;
+namespace Bluetuith.Shim.DataTypes.Generic;
 
 public static class OptionExtensions
 {
-    public static void AppendString<T>(
-        this Nullable<T> option,
-        string name,
-        ref StringBuilder stringBuilder
-    )
+    public static void AppendString<T>(this T? option, string name, ref StringBuilder stringBuilder)
         where T : struct
     {
         if (option.HasValue && option.Value is var value)

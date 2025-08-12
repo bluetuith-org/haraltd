@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices.WindowsRuntime;
+using Bluetuith.Shim.Stack.Microsoft.Adapters;
 using InTheHand.Net;
 using InTheHand.Net.Bluetooth;
 using InTheHand.Net.Bluetooth.AttributeIds;
@@ -8,83 +9,24 @@ using Windows.Devices.Bluetooth.Rfcomm;
 using Windows.Devices.Enumeration;
 using Windows.Storage.Streams;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Devices;
 
 internal static class DeviceUtils
 {
-#nullable enable
-    internal static async Task<BluetoothDevice> GetBluetoothDeviceWithService(
-        string address,
-        Guid service
-    )
-    {
-        BluetoothDevice device = await GetBluetoothDevice(address);
-        if (!device.DeviceInformation.Pairing.IsPaired)
-            throw new ArgumentException($"Device {address} is not paired");
-
-        RfcommDeviceServicesResult? result = await device.GetRfcommServicesForIdAsync(
-            RfcommServiceId.FromUuid(service)
-        );
-        return result is null || result.Services.Count == 0
-            ? throw new ArgumentException(
-                $"The service ({BluetoothService.GetName(service)}) does not exist for device with address {address}"
-            )
-            : device;
-    }
-
-    internal static async Task<BluetoothDevice> GetBluetoothDevice(string address)
-    {
-        AdapterMethods.ThrowIfRadioNotOperable();
-
-        BluetoothDevice? device = await BluetoothDevice.FromBluetoothAddressAsync(
-            BluetoothAddress.Parse(address)
-        );
-        return device is null
-            ? throw new ArgumentNullException($"The device with address {address} was not found.")
-            : device;
-    }
-
-    internal static async Task<string> GetDeviceIdBySelector(string address, string selector)
-    {
-        var deviceId = "";
-        ulong addressAsUlong = BluetoothAddress.Parse(address);
-
-        foreach (DeviceInformation deviceInfo in await DeviceInformation.FindAllAsync(selector))
-        {
-            BluetoothDevice bluetoothDevice = await BluetoothDevice.FromIdAsync(deviceInfo.Id);
-            if (bluetoothDevice?.BluetoothAddress == addressAsUlong)
-            {
-                deviceId = deviceInfo.Id;
-                break;
-            }
-        }
-
-        return string.IsNullOrEmpty(deviceId)
-            ? throw new ArgumentException(
-                $"The device with address {address} was not found with selector {selector}"
-            )
-            : deviceId;
-    }
-
-#nullable disable
-
     internal static Guid[] GetServicesFromSdpRecords(IReadOnlyList<IBuffer> sdpRecords)
     {
-        List<Guid> services = new List<Guid>();
+        var services = new List<Guid>();
 
         foreach (var sdpRecord in sdpRecords)
         {
-            Guid protocolUUID = Guid.Empty;
+            var protocolUuid = Guid.Empty;
 
-            ServiceRecord attributes = ServiceRecord.CreateServiceRecordFromBytes(
-                sdpRecord.ToArray()
-            );
+            var attributes = ServiceRecord.CreateServiceRecordFromBytes(sdpRecord.ToArray());
 
             var attribute = attributes.GetAttributeById(
                 UniversalAttributeId.ProtocolDescriptorList
             );
             if (attribute != null)
-            {
                 try
                 {
                     var vals = attribute
@@ -95,20 +37,18 @@ internal static class DeviceUtils
                     // values in a list from most to least specific so read the first entry
                     var mostSpecific = vals.FirstOrDefault();
                     // short ids are automatically converted to a long Guid
-                    protocolUUID = mostSpecific.GetValueAsUuid();
+                    protocolUuid = mostSpecific.GetValueAsUuid();
                 }
                 catch
                 {
-                    protocolUUID = Guid.Empty;
+                    protocolUuid = Guid.Empty;
                 }
-            }
 
-            if (protocolUUID != BluetoothProtocol.L2CapProtocol)
+            if (protocolUuid != BluetoothProtocol.L2CapProtocol)
                 continue;
 
             attribute = attributes.GetAttributeById(UniversalAttributeId.ServiceClassIdList);
             if (attribute != null)
-            {
                 try
                 {
                     var vals = attribute.Value.GetValueAsElementList();
@@ -119,8 +59,9 @@ internal static class DeviceUtils
 
                     services.Add(guid);
                 }
-                catch { }
-            }
+                catch
+                {
+                }
         }
 
         return [.. services];
@@ -154,5 +95,56 @@ internal static class DeviceUtils
     internal static string HostAddress(string address)
     {
         return string.IsNullOrEmpty(address) ? "" : address.Replace("(", "").Replace(")", "");
+    }
+
+#nullable enable
+    internal static async Task<BluetoothDevice> GetBluetoothDeviceWithService(
+        string address,
+        Guid service
+    )
+    {
+        var device = await GetBluetoothDevice(address);
+        if (!device.DeviceInformation.Pairing.IsPaired)
+            throw new ArgumentException($"Device {address} is not paired");
+
+        var result = await device.GetRfcommServicesForIdAsync(RfcommServiceId.FromUuid(service));
+        return result is null || result.Services.Count == 0
+            ? throw new ArgumentException(
+                $"The service ({BluetoothService.GetName(service)}) does not exist for device with address {address}"
+            )
+            : device;
+    }
+
+    internal static async Task<BluetoothDevice> GetBluetoothDevice(string address)
+    {
+        AdapterMethods.ThrowIfRadioNotOperable();
+
+        var device = await BluetoothDevice.FromBluetoothAddressAsync(
+            BluetoothAddress.Parse(address)
+        );
+        return device
+               ?? throw new ArgumentNullException($"The device with address {address} was not found.");
+    }
+
+    internal static async Task<string> GetDeviceIdBySelector(string address, string selector)
+    {
+        var deviceId = "";
+        ulong addressAsUlong = BluetoothAddress.Parse(address);
+
+        foreach (var deviceInfo in await DeviceInformation.FindAllAsync(selector))
+        {
+            var bluetoothDevice = await BluetoothDevice.FromIdAsync(deviceInfo.Id);
+            if (bluetoothDevice?.BluetoothAddress == addressAsUlong)
+            {
+                deviceId = deviceInfo.Id;
+                break;
+            }
+        }
+
+        return string.IsNullOrEmpty(deviceId)
+            ? throw new ArgumentException(
+                $"The device with address {address} was not found with selector {selector}"
+            )
+            : deviceId;
     }
 }

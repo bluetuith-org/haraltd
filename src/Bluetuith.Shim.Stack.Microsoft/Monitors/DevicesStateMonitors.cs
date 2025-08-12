@@ -1,28 +1,32 @@
-﻿using Bluetuith.Shim.DataTypes;
-using Bluetuith.Shim.Operations;
+﻿using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
+using Bluetuith.Shim.Operations.OutputStream;
+using Bluetuith.Shim.Stack.Microsoft.Devices;
+using Bluetuith.Shim.Stack.Microsoft.Windows;
 using Nefarius.Utilities.Bluetooth;
 using Nefarius.Utilities.DeviceManagement.PnP;
 using Windows.Devices.Bluetooth;
 using WmiLight;
-using static Bluetuith.Shim.DataTypes.IEvent;
+using static Bluetuith.Shim.DataTypes.Generic.IEvent;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Monitors;
 
 internal partial class DevicesStateMonitor : IMonitor
 {
-    private DevicesWatcher monitor;
-    private DevicesWatcher.Subscriber subscriber;
+    private DevicesWatcher _monitor;
+    private DevicesWatcher.Subscriber _subscriber;
 
     MonitorName IMonitor.Name => MonitorName.DevicesStateMonitor;
     bool IMonitor.RestartOnPowerStateChanged => false;
-    bool IWatcher.IsRunning => monitor != null && monitor.IsRunning;
-    bool IWatcher.IsCreated => monitor != null;
+    bool IWatcher.IsRunning => _monitor is { IsRunning: true };
+    bool IWatcher.IsCreated => _monitor != null;
 
     public void Create(OperationToken token)
     {
-        monitor = new DevicesWatcher(BluetoothDevice.GetDeviceSelectorFromPairingState(true));
+        _monitor = new DevicesWatcher(BluetoothDevice.GetDeviceSelectorFromPairingState(true));
 
-        subscriber = new DevicesWatcher.Subscriber(monitor, token)
+        _subscriber = new DevicesWatcher.Subscriber(_monitor, token)
         {
             OnAdded = static (info, tok) =>
             {
@@ -32,35 +36,31 @@ internal partial class DevicesStateMonitor : IMonitor
                     Output.Event(info, tok);
                 }
             },
-            OnRemoved = static (info, tok) =>
+            OnRemoved = static (info, tok) => { Output.Event(info, tok); },
+            OnUpdated = static (_, newInfo, tok) =>
             {
-                Output.Event(info, tok);
-            },
-            OnUpdated = static (oldInfo, newInfo, tok) =>
-            {
-                var wasPaired = oldInfo.OptionPaired.HasValue && oldInfo.OptionPaired.Value;
                 var isPaired = newInfo.OptionPaired.HasValue && newInfo.OptionPaired.Value;
 
                 if (isPaired)
                     Output.Event(newInfo, tok);
-            },
+            }
         };
     }
 
     public bool Start()
     {
-        return monitor != null && monitor.Start();
+        return _monitor != null && _monitor.Start();
     }
 
     public void Stop()
     {
-        monitor?.Stop();
+        _monitor?.Stop();
     }
 
     public void Dispose()
     {
-        subscriber?.Dispose();
-        monitor?.Dispose();
+        _subscriber?.Dispose();
+        _monitor?.Dispose();
     }
 }
 
@@ -71,15 +71,15 @@ internal partial class DevicesBatteryStateMonitor : IMonitor
 
     MonitorName IMonitor.Name => MonitorName.DevicesBatteryMonitor;
     bool IMonitor.RestartOnPowerStateChanged => false;
-    bool IWatcher.IsRunning => _monitor != null && _monitor.IsRunning;
+    bool IWatcher.IsRunning => _monitor is { IsRunning: true };
     bool IWatcher.IsCreated => _monitor != null;
 
     public void Create(OperationToken token)
     {
         _token = token;
-        _monitor = new(
+        _monitor = new RegistryWatcher(
             "HKEY_LOCAL_MACHINE",
-            WindowsPnPInformation.HFEnumeratorRegistryKey,
+            WindowsPnPInformation.HfEnumeratorRegistryKey,
             EventWatcher_EventArrived
         );
     }
@@ -104,29 +104,28 @@ internal partial class DevicesBatteryStateMonitor : IMonitor
         try
         {
             var roothPathEvent = e.NewEvent.GetPropertyValue("RootPath");
-            if (roothPathEvent != null && roothPathEvent is string rootPath)
+            if (roothPathEvent is string)
             {
                 var instances = 0;
                 while (
                     Devcon.FindByInterfaceGuid(
-                        WindowsPnPInformation.HFEnumeratorInterfaceGuid,
+                        WindowsPnPInformation.HfEnumeratorInterfaceGuid,
                         out var pnpDevice,
                         instances++,
                         HostRadio.IsOperable
                     )
                 )
-                {
                     if (
                         Convert.ToInt32(
                             pnpDevice.GetProperty<byte>(
                                 WindowsPnPInformation.Device.BatteryPercentage
                             )
                         )
-                            is int batteryPercentage
-                        && batteryPercentage > 0
+                        is int batteryPercentage
+                        and > 0
                     )
                     {
-                        var deviceEvent = new DeviceEvent() { Action = EventAction.Updated };
+                        var deviceEvent = new DeviceEvent { Action = EventAction.Updated };
 
                         var error = deviceEvent.MergeBatteryInformation(
                             pnpDevice.DeviceId,
@@ -134,13 +133,12 @@ internal partial class DevicesBatteryStateMonitor : IMonitor
                         );
 
                         if (error == Errors.ErrorNone)
-                        {
                             Output.Event(deviceEvent, _token);
-                        }
                     }
-                }
             }
         }
-        catch { }
+        catch
+        {
+        }
     }
 }

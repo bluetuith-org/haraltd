@@ -4,22 +4,28 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
-using Bluetuith.Shim.DataTypes;
+using Bluetuith.Shim.DataTypes.Generic;
+using Bluetuith.Shim.DataTypes.OperationToken;
 using Bluetuith.Shim.Operations;
+using Bluetuith.Shim.Operations.Managers;
+using Bluetuith.Shim.Operations.OutputStream;
 using H.NotifyIcon.Core;
+using Windows.Wdk.System.Threading;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Threading;
+using Windows.Win32.UI.WindowsAndMessaging;
+using ServerCommand = Bluetuith.Shim.Operations.Commands.Definitions.Server;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Server;
 
-public class MSFTServer : IServer
+public class MsftServer : IServer
 {
-    public ErrorData StartServer(string SocketPath, string newProcessArgs)
+    public ErrorData StartServer(string socketPath, string newProcessArgs)
     {
         try
         {
-            using var mutex = GetGlobalMutex(out var gotHandle);
+            using var mutex = GetGlobalMutex();
             if (newProcessArgs != "")
             {
                 RelaunchProcess(newProcessArgs);
@@ -27,23 +33,21 @@ public class MSFTServer : IServer
             }
 
             var token = OperationManager.GenerateToken(0, Guid.NewGuid());
-            using var trayIcon = new Tray(token, SocketPath);
+            using var trayIcon = new Tray(token, socketPath);
 
             OperationManager.AddToken(token);
 
-            var error = WindowsMonitors.Start(token);
+            var error = Monitors.WindowsMonitors.Start(token);
             if (error != Errors.ErrorNone)
             {
                 trayIcon.ShowError(error);
                 return error;
             }
 
-            Output.OnStarted += (socketPath) =>
-                trayIcon.ShowInfo(
-                    $"The shim RPC server instance has started at socket '{socketPath}'"
-                );
+            Output.OnStarted += s =>
+                trayIcon.ShowInfo($"The shim RPC server instance has started at socket '{s}'");
 
-            error = Output.StartSocketServer(SocketPath, token);
+            error = Output.StartSocketServer(socketPath, token);
             OperationManager.CancelAllAsync().Wait();
             if (error != Errors.ErrorNone)
             {
@@ -55,18 +59,14 @@ public class MSFTServer : IServer
         }
         catch (Exception ex)
         {
-            PInvoke.MessageBox(
-                (HWND)null,
-                ex.Message,
-                IServer.Name,
-                Windows.Win32.UI.WindowsAndMessaging.MESSAGEBOX_STYLE.MB_ICONERROR
-            );
+            Console.WriteLine(ex);
+            PInvoke.MessageBox((HWND)null, ex.Message, IServer.Name, MESSAGEBOX_STYLE.MB_ICONERROR);
 
             return Errors.ErrorUnexpected.AddMetadata("exception", ex.Message);
         }
         finally
         {
-            _ = WindowsMonitors.Stop();
+            _ = Monitors.WindowsMonitors.Stop();
         }
     }
 
@@ -90,44 +90,6 @@ public class MSFTServer : IServer
         return Errors.ErrorNone;
     }
 
-    private static void RelaunchProcess(string newProcessArgs)
-    {
-        var p = new Process();
-        p.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-
-        var si = p.StartInfo;
-        si.UseShellExecute = true;
-        si.CreateNoWindow = true;
-        si.FileName = Environment.ProcessPath;
-        si.Verb = "runas";
-        si.Arguments = newProcessArgs;
-
-        p.Start();
-    }
-
-    private Mutex GetGlobalMutex(out bool gotHandle)
-    {
-        var executingAssembly = Assembly.GetExecutingAssembly();
-        var customAttributes = executingAssembly.GetCustomAttributes(typeof(GuidAttribute), false);
-        var guidAttribute = ((GuidAttribute)customAttributes[0]).Value.ToString();
-        var mutexId = string.Format("Global\\{{{0}}}", guidAttribute);
-
-        var mutex = new Mutex(false, mutexId, out _);
-        try
-        {
-            gotHandle = mutex.WaitOne(500, false);
-        }
-        catch (AbandonedMutexException)
-        {
-            gotHandle = true;
-        }
-
-        if (!gotHandle)
-            throw new Exception("Cannot start a new instance. Server is already running.");
-
-        return mutex;
-    }
-
     public bool IsAdministrator()
     {
         using var identity = WindowsIdentity.GetCurrent();
@@ -145,72 +107,87 @@ public class MSFTServer : IServer
 
             PInvoke.FreeConsole();
 
-            new Server().Start(null, "", false);
+            new ServerCommand().Start(null);
         }
-        catch { }
+        catch
+        {
+        }
 
         return true;
+    }
+
+    private static void RelaunchProcess(string newProcessArgs)
+    {
+        var p = new Process();
+        p.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+
+        var si = p.StartInfo;
+        si.UseShellExecute = true;
+        si.CreateNoWindow = true;
+        si.FileName = Environment.ProcessPath;
+        si.Verb = "runas";
+        si.Arguments = newProcessArgs;
+
+        p.Start();
+    }
+
+    private static Mutex GetGlobalMutex()
+    {
+        bool gotHandle;
+        var executingAssembly = Assembly.GetExecutingAssembly();
+        var customAttributes = executingAssembly.GetCustomAttributes(typeof(GuidAttribute), false);
+        var guidAttribute = ((GuidAttribute)customAttributes[0]).Value;
+        var mutexId = $"Global\\{{{guidAttribute}}}";
+
+        var mutex = new Mutex(false, mutexId, out _);
+        try
+        {
+            gotHandle = mutex.WaitOne(500, false);
+        }
+        catch (AbandonedMutexException)
+        {
+            gotHandle = true;
+        }
+
+        if (!gotHandle)
+            throw new Exception("Cannot start a new instance. Server is already running.");
+
+        return mutex;
     }
 }
 
 internal partial class Tray : IDisposable
 {
-    private readonly OperationToken _token;
-    private readonly TrayIconWithContextMenu _tray;
-
-    private readonly Stream _iconStream;
     private readonly Icon _icon;
 
-    public TrayIconWithContextMenu TrayInstance
-    {
-        get { return _tray; }
-    }
+    private readonly Stream _iconStream;
+    private readonly OperationToken _token;
 
-    internal Tray(OperationToken token, string SocketPath)
+    internal Tray(OperationToken token, string socketPath)
     {
         _token = token;
         _iconStream = Assembly
             .GetExecutingAssembly()
-            .GetManifestResourceStream("Bluetuith.Shim.Resources.shimicon.ico");
+            .GetManifestResourceStream("Bluetuith.Shim.Stack.Microsoft.Resources.shimicon.ico");
         _icon = new Icon(_iconStream);
 
         var trayIcon = new TrayIconWithContextMenu
         {
             Icon = _icon.Handle,
-            ToolTip = $"Bluetuith Shim RPC server\n\nStarted at socket '{SocketPath}'",
-            ContextMenu = new PopupMenu()
+            ToolTip = $"Bluetuith Shim RPC server\n\nStarted at socket '{socketPath}'",
+            ContextMenu = new PopupMenu
             {
-                Items = { new PopupMenuItem("Stop", (_, _) => token.Release()) },
-            },
+                Items = { new PopupMenuItem("Stop", (_, _) => token.Release()) }
+            }
         };
 
         trayIcon.Create();
         Thread.Sleep(1000);
 
-        _tray = trayIcon;
+        TrayInstance = trayIcon;
     }
 
-    internal void ShowInfo(string info)
-    {
-        _tray.ShowNotification(
-            title: nameof(NotificationIcon.Info),
-            message: info,
-            icon: NotificationIcon.Info
-        );
-    }
-
-    internal void ShowError(ErrorData error)
-    {
-        var errmsg = "An unknown error occurred";
-        if (error.Metadata.TryGetValue("exception", out var message))
-            errmsg = message.ToString();
-
-        _tray.ShowNotification(
-            title: nameof(NotificationIcon.Error),
-            message: errmsg,
-            icon: NotificationIcon.Error
-        );
-    }
+    public TrayIconWithContextMenu TrayInstance { get; }
 
     public void Dispose()
     {
@@ -219,7 +196,25 @@ internal partial class Tray : IDisposable
         _icon.Dispose();
         _iconStream.Dispose();
 
-        _tray.Dispose();
+        TrayInstance.Dispose();
+    }
+
+    internal void ShowInfo(string info)
+    {
+        TrayInstance.ShowNotification(nameof(NotificationIcon.Info), info, NotificationIcon.Info);
+    }
+
+    internal void ShowError(ErrorData error)
+    {
+        var errmsg = "An unknown error occurred";
+        if (error.Metadata.TryGetValue("exception", out var message))
+            errmsg = message.ToString();
+
+        TrayInstance.ShowNotification(
+            nameof(NotificationIcon.Error),
+            errmsg,
+            NotificationIcon.Error
+        );
     }
 }
 
@@ -230,11 +225,11 @@ internal static class ProcessUtilities
         uint returnLength = 0;
 
         var info = new PROCESS_BASIC_INFORMATION();
-        PROCESS_BASIC_INFORMATION* infoPtr = &info;
+        var infoPtr = &info;
 
-        var status = Windows.Wdk.PInvoke.NtQueryInformationProcess(
-            new(Process.GetCurrentProcess().Handle),
-            Windows.Wdk.System.Threading.PROCESSINFOCLASS.ProcessBasicInformation,
+        var status = global::Windows.Wdk.PInvoke.NtQueryInformationProcess(
+            new HANDLE(Process.GetCurrentProcess().Handle),
+            PROCESSINFOCLASS.ProcessBasicInformation,
             infoPtr,
             (uint)Unsafe.SizeOf<PROCESS_BASIC_INFORMATION>(),
             ref returnLength
@@ -252,18 +247,8 @@ internal static class ProcessUtilities
  */
 internal static class ConsoleNativeMethods
 {
-    // Enumerated type for the control messages sent to the handler routine
-    enum CtrlTypes : uint
-    {
-        CTRL_C_EVENT = 0,
-        CTRL_BREAK_EVENT,
-        CTRL_CLOSE_EVENT,
-        CTRL_LOGOFF_EVENT = 5,
-        CTRL_SHUTDOWN_EVENT,
-    }
-
     // Modified from the original linked answer.
-    internal unsafe static void StopProgram()
+    internal static unsafe void StopProgram()
     {
         var thisPid = Environment.ProcessId;
         var notAttached = 0;
@@ -277,7 +262,6 @@ internal static class ConsoleNativeMethods
                     Path.GetFileNameWithoutExtension(Environment.ProcessPath)
                 )
             )
-            {
                 using (proc)
                 {
                     if (proc is null || proc.Id == thisPid)
@@ -287,7 +271,7 @@ internal static class ConsoleNativeMethods
                     {
                         if (PInvoke.FreeConsole() && PInvoke.AttachConsole((uint)proc.Id))
                         {
-                            if (PInvoke.GenerateConsoleCtrlEvent((uint)CtrlTypes.CTRL_C_EVENT, 0))
+                            if (PInvoke.GenerateConsoleCtrlEvent((uint)CtrlTypes.CtrlCEvent, 0))
                                 proc.WaitForExit(2000);
                             else
                                 notAttached++;
@@ -302,7 +286,6 @@ internal static class ConsoleNativeMethods
                         notAttached++;
                     }
                 }
-            }
         }
         catch
         {
@@ -315,5 +298,15 @@ internal static class ConsoleNativeMethods
 
         if (notAttached > 0)
             throw new Exception("Could not attach to and send signal to processes");
+    }
+
+    // Enumerated type for the control messages sent to the handler routine
+    private enum CtrlTypes : uint
+    {
+        CtrlCEvent = 0,
+        CtrlBreakEvent,
+        CtrlCloseEvent,
+        CtrlLogoffEvent = 5,
+        CtrlShutdownEvent
     }
 }

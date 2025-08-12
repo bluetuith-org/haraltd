@@ -1,4 +1,6 @@
-﻿namespace Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes.Generic;
+
+namespace Bluetuith.Shim.DataTypes.Events;
 
 public partial class EventTypes
 {

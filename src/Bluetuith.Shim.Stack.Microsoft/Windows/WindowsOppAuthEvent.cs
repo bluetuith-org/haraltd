@@ -1,13 +1,16 @@
-﻿using Bluetuith.Shim.DataTypes;
+﻿using Bluetuith.Shim.DataTypes.Events;
+using Bluetuith.Shim.DataTypes.OperationToken;
 
-namespace Bluetuith.Shim.Stack.Microsoft;
+namespace Bluetuith.Shim.Stack.Microsoft.Windows;
 
-internal record class WindowsOppAuthEvent : OppAuthenticationEvent
+internal record WindowsOppAuthEvent : OppAuthenticationEvent
 {
     public WindowsOppAuthEvent(
         int timeout,
         IFileTransferEvent fileTransferEvent,
         OperationToken token
     )
-        : base(timeout, fileTransferEvent, token) { }
+        : base(timeout, fileTransferEvent, token)
+    {
+    }
 }
