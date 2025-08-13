@@ -1,7 +1,7 @@
 # configuration file for dotnet-releaser
 profile = "custom"
 [msbuild]
-project = "Bluetuith.Shim.sln"
+project = "Haraltd.sln"
 [msbuild.properties]
 PublishReadyToRun = false
 SkipCopyingSymbolsToOutputDirectory = true
@@ -11,7 +11,7 @@ DebugType = "None"
 DebuggerSupport = false
 [github]
 user = "bluetuith-org"
-repo = "bluetuith-shim-windows"
+repo = "haraltd"
 version_prefix = "v"
 branches = ["master"]
 [[pack]]

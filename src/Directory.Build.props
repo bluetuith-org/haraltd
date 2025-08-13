@@ -1,6 +1,6 @@
 <Project>
     <PropertyGroup>
-        <RootNamespace>Bluetuith.Shim</RootNamespace>
+        <RootNamespace>Haraltd</RootNamespace>
         <LangVersion>13</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
@@ -36,7 +36,7 @@
         </PackageReference>
     </ItemGroup>
     <Import
-            Project="Bluetuith.Shim.Stack.Microsoft\MicrosoftStack.props"
+            Project="Haraltd.Stack.Microsoft\MicrosoftStack.props"
             Condition=" '$(OS)' == 'Windows_NT' "
     />
 </Project>

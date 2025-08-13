@@ -1,5 +1,5 @@
-# bluetuith-shim-windows
-A shim and command-line tool to use Bluetooth Classic features on Windows.<br />
+# haraltd
+A daemon and command-line tool to use Bluetooth Classic features on Windows.<br />
 Part of the cross-platform work for the [bluetuith](https://github.com/darkhz/bluetuith) project.
 
 This is alpha-grade software.
@@ -30,7 +30,7 @@ All downloads can be found within the 'Releases' page of the repository.
 # Documentation
 This documentation is mostly a quick-start guide. Detailed documentation will come later.
 
-Interaction with the shim can be done via:
+Interaction with the daemon can be done via:
 - The console (command-line mode)
 - A socket (rpc mode)
 
@@ -41,29 +41,29 @@ As with most command-line tools,
 
 The 'help' option can be used with subcommands as well, for example:
 ```
-bluetuith-shim adapter --help
+haraltd adapter --help
 ```
 
 ### Adapter commands
 - To switch on/off the adapter:
 ```
-bluetuith-shim adapter set-power-state <on|off>
+haraltd adapter set-power-state <on|off>
 ```
 
 - To get information about the Bluetooth adapter:
 ```
-bluetuith-shim adapter properties
+haraltd adapter properties
 ```
 
 - To scan for Bluetooth devices:
 ```
-bluetuith-shim adapter discovery start
+haraltd adapter discovery start
 ```
 (Press Ctrl-C to stop discovery)
 
 - To get the currently paired devices:
 ```
-bluetuith-shim adapter get-paired-devices
+haraltd adapter get-paired-devices
 ```
 
 ### Device commands
@@ -71,7 +71,7 @@ Most subcommands of the 'device' command have a mandatory `--address` or `-a` pa
 
 - To pair a device:
 ```
-bluetuith-shim device pair -a <address>
+haraltd device pair -a <address>
 ```
 While pairing, a prompt may appear (to confirm whether PINs match between host and remote device, for example).<br />
 Press "y" or "n" to accept or decline pairing with the remote device.<br />
@@ -79,78 +79,78 @@ Note that a default timeout of 10 seconds is set to wait for a reply from the us
 
 - Similarly, to unpair a device:
 ```
-bluetuith-shim device remove -a <address>
+haraltd device remove -a <address>
 ```
 
 - To view information about a device:
 ```
-bluetuith-shim device properties -a <address>
+haraltd device properties -a <address>
 ```
 
 Once a device has been paired, a connection can be made to the device.<br />
 To connect to a Bluetooth device, a Bluetooth profile must be specified.<br />
-Currently, within the shim, each connectable profile appears as a subcommand of the `connect` command.<br />
+Currently, within the daemon, each connectable profile appears as a subcommand of the `connect` command.<br />
 
 To view all connectable/supported profiles:
 ```
-bluetuith-shim device connect --help
+haraltd device connect --help
 ```
 
 To automatically connect to a device:
 ```
-bluetuith-shim device connect -a <address>
+haraltd device connect -a <address>
 ```
 
 **Some connection examples:**
 - To start an A2DP session with a device:
 ```
-bluetuith-shim device connect a2dp -a <address>
+haraltd device connect a2dp -a <address>
 ```
 (Note that the application has to remain open to maintain the session. Closing the app will close the session.)
 
 - To start an Object Push Profile session with a device:
-	- To send file(s): `bluetuith-shim device connect opp send-files -a <address> -f <path-to-file> -f <another-file> -f ...`
-	- To listen for and receive files: `bluetuith-shim device connect opp start-server -d <directory-path-to-save-transferred-files>`
+	- To send file(s): `haraltd device connect opp send-files -a <address> -f <path-to-file> -f <another-file> -f ...`
+	- To listen for and receive files: `haraltd device connect opp start-server -d <directory-path-to-save-transferred-files>`
 	(Press Ctrl-C to stop the server)
 
 - To start a Phonebook Access Profile session with a device:
-	- To get all contacts: `bluetuith-shim device connect pbap get-all-contacts -a <address>`
-	- To get combined call history: `bluetuith-shim device connect pbap get-combined-calls -a <address>`
+	- To get all contacts: `haraltd device connect pbap get-all-contacts -a <address>`
+	- To get combined call history: `haraltd device connect pbap get-combined-calls -a <address>`
 
-More subcommands for the `pbap` command can be listed using: `bluetuith-shim device connect pbap --help`.<br />
-Similarly, more subcommands for each profile can be listed using: `bluetuith-shim device connect <profile-name> --help`.<br />
+More subcommands for the `pbap` command can be listed using: `haraltd device connect pbap --help`.<br />
+Similarly, more subcommands for each profile can be listed using: `haraltd device connect <profile-name> --help`.<br />
 
 - To disconnect a connected device:
 ```
-bluetuith-shim device disconnect -a <address>
+haraltd device disconnect -a <address>
 ```
 
 ## RPC
-A Unix Domain socket is required, currently, to perform RPC with the shim.<br />
+A Unix Domain socket is required, currently, to perform RPC with the daemon.<br />
 Future versions may support named pipes as well.
 
-JSON is the primary data format used to exchange information to and from the shim.<br />
+JSON is the primary data format used to exchange information to and from the daemon.<br />
 
 **Note: Pbap and Map commands aren't ready for use via RPC yet.**
 
 ### Start/Stop the server
 To start the server over a socket:
 ```
-bluetuith-shim server start
+haraltd server start
 ```
 A socket will be automatically created, a popup will be displayed, and a system tray icon will be created once the service starts.
 
 To stop the server:
 ```
-bluetuith-shim server stop
+haraltd server stop
 ```
 
-Once the server has started, commands can be sent to the shim via the socket.
+Once the server has started, commands can be sent to the daemon via the socket.
 
-For more information on how to communicate with the server, see the [RPC specification](https://github.com/bluetuith-org/bluetuith-shim-windows/blob/master/docs/shim-rpc-spec.md).
+For more information on how to communicate with the server, see the [RPC specification](https://github.com/bluetuith-org/haraltd/blob/master/docs/daemon-rpc-spec.md).
 
 # Credits
-These repositories were invaluable during the development of the shim.<br />
+These repositories were invaluable during the development of the daemon.<br />
 Please star these repositories individually, and possibly submit contributions to them.<br />
 
 - For very extensive Bluetooth related functionality, wrappers and documentation: [32feet](https://github.com/inthehand/32feet).<br />
