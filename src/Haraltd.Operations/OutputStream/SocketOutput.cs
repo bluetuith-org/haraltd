@@ -1,12 +1,11 @@
 ﻿using System.Buffers;
 using System.Collections.Concurrent;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Channels;
 using DotNext.Collections.Generic;
 using DotNext.IO;
-using DotNext.Threading;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.Managers;
@@ -45,16 +44,16 @@ internal sealed class SocketOutput : OutputBase
 
     internal override int EmitResult<T>(T result, OperationToken token)
     {
-        SendMarshalledResult(result, token);
-
-        return base.EmitResult(result, token);
+        return !SendMarshalledResult(result, token)
+            ? SocketErrors.ErrorJsonResponseMarshal.Code.Value
+            : base.EmitResult(result, token);
     }
 
     internal override int EmitError(ErrorData error, OperationToken token)
     {
-        SendMarshalledError(error, token);
-
-        return base.EmitError(error, token);
+        return !SendMarshalledError(error, token)
+            ? SocketErrors.ErrorJsonResponseMarshal.Code.Value
+            : base.EmitError(error, token);
     }
 
     internal override void EmitEvent<T>(T ev, OperationToken token, bool clientOnly = false)
@@ -134,7 +133,7 @@ internal class SocketSession(SocketServer server) : UdsSession(server)
         {
             foreach (
                 var request in JsonSerializer
-                    .DeserializeAsyncEnumerable<Request>(
+                    .DeserializeAsyncEnumerable(
                         new ReadOnlySequence<byte>(buffer[(int)offset..(int)size]).AsStream(),
                         RequestSerializable.Default.Request,
                         true
@@ -162,7 +161,7 @@ internal class SocketSession(SocketServer server) : UdsSession(server)
     private static void Execute(object obj)
     {
         var result = obj as ParseRequest;
-        OperationManager.ExecuteHandler(result.Token, result.ClientRequest.Command);
+        OperationManager.ExecuteHandler(result!.Token, result.ClientRequest.Command);
     }
 
     protected override void OnDisconnected()
@@ -195,13 +194,12 @@ internal class SocketServer : UdsServer
         : base(path) { }
 
     internal bool SendReply<T>(OperationToken token, bool clientOnlyData, T marshaller)
-        where T : IMarshaller, allows ref struct
+        where T : IMarshaller
     {
         if (!IsStarted)
             return false;
 
         var unsent = 0;
-        List<Exception> socketExceptions = null;
 
         try
         {
@@ -220,29 +218,12 @@ internal class SocketServer : UdsServer
                         continue;
                 }
 
-                using (session.AcquireWriteLock())
-                {
-                    try
-                    {
-                        marshaller.Write(token, session.Writer);
-                        session.Flush();
-                    }
-                    catch (Exception ex)
-                    {
-                        socketExceptions ??= [];
-                        socketExceptions.Add(ex);
-
-                        if (ex is NullReferenceException || !session.Reset())
-                            unsent++;
-                    }
-                }
+                if (!session.Enqueue(marshaller, token))
+                    unsent++;
 
                 if (foundClient)
                     break;
             }
-
-            if (socketExceptions != null)
-                throw new AggregateException(socketExceptions);
 
             return unsent == 0;
         }
@@ -276,30 +257,76 @@ internal class SocketServer : UdsServer
 
     private class SessionStream
     {
-        private static readonly byte[] NewLine = "\n"u8.ToArray();
+        private record SessionReply<T>
+            where T : IMarshaller
+        {
+            public T Marshaller = default!;
+            public OperationToken Token;
+        }
+
+        private static readonly byte[] NewLine = "\r\n"u8.ToArray();
         private static readonly JsonWriterOptions Options = new() { SkipValidation = true };
         private UdsSession _session;
         private NetworkStream _stream;
+        private readonly Channel<SessionReply<IMarshaller>> _replyQueue = Channel.CreateUnbounded<
+            SessionReply<IMarshaller>
+        >(
+            new UnboundedChannelOptions
+            {
+                AllowSynchronousContinuations = true,
+                SingleReader = true,
+                SingleWriter = false,
+            }
+        );
+
+        private Utf8JsonWriter Writer { get; set; }
+
+        public bool IsDisposed => _session.IsDisposed || _session.IsSocketDisposed;
+
+        public Guid Id => _session.Id;
 
         public SessionStream(UdsSession session)
         {
             Initialize(session);
         }
 
-        public Utf8JsonWriter Writer { get; private set; }
-
-        public bool IsDisposed => _session.IsDisposed || _session.IsSocketDisposed;
-
-        public Guid Id => _session.Id;
-
         private void Initialize(UdsSession session)
         {
             _session = session;
             _stream = new NetworkStream(_session.Socket, FileAccess.Write, false);
             Writer = new Utf8JsonWriter(_stream, Options);
+            Task.Run(async () =>
+            {
+                while (
+                    await _replyQueue.Reader.WaitToReadAsync()
+                    && _replyQueue.Reader.TryRead(out var reply)
+                )
+                {
+                    try
+                    {
+                        reply.Marshaller.Write(reply.Token, Writer);
+                        await Flush();
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex is NullReferenceException || !Reset())
+                            Console.WriteLine(
+                                $"An exception occurred while writing reply: {ex.Message}"
+                            );
+                    }
+                }
+            });
         }
 
-        public bool Reset()
+        public bool Enqueue<T>(T marshaller, OperationToken token)
+            where T : IMarshaller
+        {
+            return _replyQueue.Writer.TryWrite(
+                new SessionReply<IMarshaller>() { Marshaller = marshaller, Token = token }
+            );
+        }
+
+        private bool Reset()
         {
             if (_session == null || IsDisposed)
                 return false;
@@ -320,18 +347,21 @@ internal class SocketServer : UdsServer
             return true;
         }
 
-        public void Flush()
+        private async Task Flush()
         {
-            Writer.Flush();
-            _stream.Write(NewLine, 0, 1);
+            await Writer.FlushAsync();
+            _stream.Write(NewLine);
 
             Writer.Reset();
+            await Task.Delay(10);
         }
 
         public void Dispose()
         {
             try
             {
+                _replyQueue.Writer.TryComplete();
+
                 Writer.Dispose();
                 _stream.Dispose();
             }
@@ -356,10 +386,15 @@ internal record struct Request
 )]
 internal partial class RequestSerializable : JsonSerializerContext;
 
-internal class SocketErrors : Errors
+internal abstract class SocketErrors : Errors
 {
     internal static readonly ErrorData ErrorJsonRequestParse = new(
         new ErrorCode("ERROR_JSON_REQUEST_PARSE", -2500),
         "An error occurred while parsing the JSON request"
+    );
+
+    internal static readonly ErrorData ErrorJsonResponseMarshal = new(
+        new ErrorCode("ERROR_JSON_RESPONSE_MARSHAL", -2511),
+        "An error occurred while marshalling the JSON request"
     );
 }
