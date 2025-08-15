@@ -24,10 +24,10 @@ internal partial class AdapterStateMonitor : IMonitor
             ? new BluetoothAddress(_bluetoothAdapter.BluetoothAddress)
             : throw new InvalidDataException("Uninitialized adapter");
 
-    public virtual MonitorName Name { get; } = MonitorName.None;
-    public virtual bool IsRunning { get; } = false;
-    public virtual bool IsCreated { get; } = false;
-    public virtual bool RestartOnPowerStateChanged { get; } = false;
+    public virtual MonitorName Name => MonitorName.None;
+    public virtual bool IsRunning => false;
+    public virtual bool IsCreated => false;
+    public virtual bool RestartOnPowerStateChanged => false;
 
     public virtual void Create(OperationToken token)
     {

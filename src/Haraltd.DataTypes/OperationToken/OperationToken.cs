@@ -91,7 +91,7 @@ public readonly struct OperationToken : IEquatable<OperationToken>
 
     public bool IsReleased()
     {
-        return _reftoken.Value.IsReleased();
+        return _reftoken?.Value == null || _reftoken.Value?.IsReleased() == true;
     }
 
     public static bool operator ==(OperationToken left, OperationToken right)

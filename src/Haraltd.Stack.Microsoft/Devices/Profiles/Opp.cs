@@ -7,8 +7,10 @@ using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.Managers;
 using Haraltd.Operations.OutputStream;
 using Haraltd.Stack.Microsoft.Adapters;
+using Haraltd.Stack.Microsoft.Windows;
 using InTheHand.Net;
 using InTheHand.Net.Bluetooth;
+using Windows.Devices.Bluetooth;
 using static Haraltd.DataTypes.Events.IFileTransferEvent;
 
 namespace Haraltd.Stack.Microsoft.Devices.Profiles;
@@ -42,19 +44,7 @@ internal static class Opp
                     "An Object Push Client session is in progress"
                 );
 
-            BluetoothAddress.Parse(address);
-
-            var device = await DeviceUtils.GetBluetoothDeviceWithService(
-                address,
-                BluetoothService.ObexObjectPush
-            );
-
-            var client = new BluetoothOppClientSession(device, new CancellationTokenSource());
-            await client.ConnectAsync();
-            if (client.ObexClient == null)
-                throw new Exception("OPP ObexClient is null on connect");
-
-            Sessions.Start(token, address, new OppClientSession(client));
+            return await Sessions.Start(token, address, new OppClientSession());
         }
         catch (OperationCanceledException)
         {
@@ -64,8 +54,6 @@ internal static class Opp
         {
             return Errors.ErrorDeviceFileTransferSession.AddMetadata("exception", e.Message);
         }
-
-        return Errors.ErrorNone;
     }
 
     internal static (FileTransferModel, ErrorData) QueueFileSend(
@@ -106,7 +94,7 @@ internal static class Opp
         string destinationDirectory = ""
     )
     {
-        if (destinationDirectory == "")
+        if (string.IsNullOrEmpty(destinationDirectory))
             destinationDirectory = TransferCacheDir;
 
         if (!Path.Exists(destinationDirectory))
@@ -116,55 +104,23 @@ internal static class Opp
         if (error != Errors.ErrorNone)
             return error;
 
-        try
-        {
-            if (
-                Sessions.GetServerSession(token, adapter.Address, out var session, out _)
-                && session.IsMainServer
-            )
-                return Errors.ErrorOperationInProgress.WrapError(
-                    new Dictionary<string, object>
-                    {
-                        { "operation", "Object Push Server" },
-                        { "exception", "An Object Push server instance is in progress" },
-                    }
-                );
-
-            var server = new BluetoothOppServerSession(
-                token.LinkedCancelTokenSource,
-                destinationDirectory,
-                data =>
+        if (
+            Sessions.GetServerSession(token, adapter.Address, out var session, out _)
+            && session.IsMainServer
+        )
+            return Errors.ErrorOperationInProgress.WrapError(
+                new Dictionary<string, object>
                 {
-                    var fileTransferEvent = new FileTransferEvent
-                    {
-                        Name = data.FileName,
-                        FileName = data.FilePath,
-                        Address = DeviceUtils.HostAddress(data.HostName),
-                        FileSize = data.FileSize,
-                        BytesTransferred = data.BytesTransferred,
-                        Status = TransferStatus.Queued,
-                        Action = IEvent.EventAction.Added,
-                    };
-
-                    var tok = OperationManager.GenerateToken(0, token.CancelTokenSource.Token);
-
-                    return Output.ConfirmAuthentication(
-                        new OppAuthenticationEvent(10000, fileTransferEvent, tok),
-                        AuthenticationManager.AuthAgentType.Obex
-                    );
+                    { "operation", "Object Push Server" },
+                    { "exception", "An Object Push server instance is in progress" },
                 }
             );
-            await server.StartServerAsync();
 
-            return Sessions.Start(token, adapter.Address, new OppServerSession(true, server, null));
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception e)
-        {
-            return Errors.ErrorDeviceFileTransferSession.AddMetadata("exception", e.Message);
-        }
-
-        return Errors.ErrorNone;
+        return await Sessions.Start(
+            token,
+            adapter.Address,
+            new OppServerSession(true, destinationDirectory)
+        );
     }
 
     internal static ErrorData StopFileTransferServer(OperationToken token)
@@ -199,7 +155,7 @@ internal record OppSessions : IDisposable
         _sessions.Clear();
     }
 
-    internal ErrorData Start(OperationToken token, string address, IOppSession session)
+    internal async Task<ErrorData> Start(OperationToken token, string address, IOppSession session)
     {
         if (!GetBluetoothAddress(address, out var addr, out var error))
             return error;
@@ -217,9 +173,7 @@ internal record OppSessions : IDisposable
         session.Token = token;
         session.Sessions = this;
 
-        session.Start();
-
-        return Errors.ErrorNone;
+        return await session.Start();
     }
 
     internal ErrorData Stop(OperationToken token, string address)
@@ -255,7 +209,14 @@ internal record OppSessions : IDisposable
                 "No session exists for Object Push"
             );
 
-        if (session.Token.ClientId != token.ClientId)
+        if (
+            (session is OppClientSession && session.Token.ClientId != token.ClientId)
+            || session is OppServerSession
+                && !AuthenticationManager.IsAgent(
+                    token.ClientId,
+                    AuthenticationManager.AuthAgentType.Obex
+                )
+        )
             return Errors.ErrorDeviceFileTransferSession.AddMetadata(
                 "exception",
                 "This transfer is controlled by another client"
@@ -367,94 +328,135 @@ internal interface IOppSession : IDisposable
     public BluetoothAddress Address { get; set; }
     public OperationToken Token { get; set; }
 
-    public OppClientSession Client { get; }
-
-    public OppServerSession Server { get; }
-
     public OppSessions Sessions { get; set; }
 
-    public void Start();
+    public Task<ErrorData> Start();
     public void Stop();
     public void CancelTransfer();
 }
 
-internal record OppServerSession(
-    bool IsMainServer,
-    BluetoothOppServerSession Server,
-    Action CancelFunc
-) : IOppSession
+internal sealed record OppServerSession(bool IsMainServer, string DestinationDirectory)
+    : IOppSession
 {
-    OppClientSession IOppSession.Client => null;
-    OppServerSession IOppSession.Server => this;
-
     public BluetoothAddress Address { get; set; }
     public OperationToken Token { get; set; }
 
     public OppSessions Sessions { get; set; }
 
-    public void Start()
+    private Action _cancelFunc;
+    private BluetoothOppServerSession _oppServer;
+
+    public async Task<ErrorData> Start()
     {
         if (!IsMainServer)
-            return;
+            return Errors.ErrorNone;
 
-        OperationManager.SetOperationProperties(Token);
-
-        Server.ClientAccepted += (_, args) =>
+        try
         {
-            var address = DeviceUtils.HostAddress(args.ClientInfo.HostName.RawName);
-            var fileTransferEvent = new FileTransferEvent();
-
-            AddSubSession(address, () => args.ObexServer.StopServer());
-
-            args.ObexServer.ReceiveTransferEventHandler += (_, e) =>
-            {
-                fileTransferEvent.Name = e.FileName;
-                fileTransferEvent.FileName = e.FilePath;
-                fileTransferEvent.Address = address;
-                fileTransferEvent.FileSize = e.FileSize;
-                fileTransferEvent.BytesTransferred = e.BytesTransferred;
-                fileTransferEvent.Status = TransferStatus.Active;
-                fileTransferEvent.Action = IEvent.EventAction.Updated;
-
-                if (e.Error)
+            var server = new BluetoothOppServerSession(
+                Token.LinkedCancelTokenSource,
+                DestinationDirectory,
+                data =>
                 {
-                    fileTransferEvent.Status = TransferStatus.Error;
+                    var fileTransferEvent = new FileTransferEventCombined()
+                    {
+                        Name = data.FileName,
+                        FileName = data.FilePath,
+                        Address = DeviceUtils.HostAddress(data.HostName),
+                        FileSize = data.FileSize,
+                        BytesTransferred = data.BytesTransferred,
+                        Status = TransferStatus.Queued,
+                    };
+
+                    var tok = OperationManager.GenerateToken(0, Token.CancelTokenSource.Token);
+
+                    return Output.ConfirmAuthentication(
+                        new WindowsOppAuthEvent(10000, fileTransferEvent, tok),
+                        AuthenticationManager.AuthAgentType.Obex
+                    );
                 }
-                else
-                {
-                    if (e.Queued)
-                        fileTransferEvent.Status = TransferStatus.Queued;
+            );
+            await server.StartServerAsync();
 
-                    if (fileTransferEvent.Name != "")
-                        fileTransferEvent.Action = IEvent.EventAction.Added;
+            _oppServer = server;
+            OperationManager.SetOperationProperties(Token);
+
+            _oppServer.ClientAccepted += (_, args) =>
+            {
+                var address = DeviceUtils.HostAddress(args.ClientInfo.HostName.RawName);
+                var fileTransferData = new FileTransferEventCombined();
+
+                AddSubSession(address, () => args.ObexServer.StopServer()).Wait();
+
+                args.ObexServer.ReceiveTransferEventHandler += (_, e) =>
+                {
+                    if (
+                        !string.IsNullOrEmpty(e.FilePath)
+                        && e.FilePath != fileTransferData.FileName
+                    )
+                    {
+                        fileTransferData.Action = IEvent.EventAction.Added;
+                    }
+                    else
+                    {
+                        fileTransferData.Action = IEvent.EventAction.Updated;
+                    }
+
+                    fileTransferData.FileName = e.FilePath;
+                    fileTransferData.Address = address;
+                    fileTransferData.FileSize = e.FileSize;
+                    fileTransferData.BytesTransferred = e.BytesTransferred;
+                    fileTransferData.Status = TransferStatus.Active;
+
+                    if (e.Error)
+                    {
+                        fileTransferData.Status = TransferStatus.Error;
+                    }
+                    else
+                    {
+                        if (e.Queued)
+                            fileTransferData.Status = TransferStatus.Queued;
+
+                        if (e.TransferDone || e.SessionClosed)
+                            fileTransferData.Status = TransferStatus.Complete;
+                    }
+
+                    Output.Event(fileTransferData, Token);
 
                     if (e.TransferDone || e.SessionClosed)
-                        fileTransferEvent.Status = TransferStatus.Complete;
-                }
-
-                Output.Event(fileTransferEvent, Token);
+                    {
+                        fileTransferData.Action = IEvent.EventAction.Removed;
+                        Output.Event(fileTransferData, Token);
+                    }
+                };
             };
-        };
-        Server.ClientDisconnected += (_, args) =>
-        {
-            RemoveSubSession(DeviceUtils.HostAddress(args.ClientInfo.HostName.RawName));
-            args.ObexServer.ReceiveTransferEventHandler = null;
+            _oppServer.ClientDisconnected += (_, args) =>
+            {
+                RemoveSubSession(DeviceUtils.HostAddress(args.ClientInfo.HostName.RawName));
+                args.ObexServer.ReceiveTransferEventHandler = null;
 
-            if (args.ObexServerException != null)
-                Output.Event(
-                    Errors.ErrorDeviceFileTransferSession.AddMetadata(
-                        "exception",
-                        args.ObexServerException.Message
-                    ),
-                    Token
-                );
-        };
+                if (args.ObexServerException != null)
+                    Output.Event(
+                        Errors.ErrorDeviceFileTransferSession.AddMetadata(
+                            "exception",
+                            args.ObexServerException.Message
+                        ),
+                        Token
+                    );
+            };
+        }
+        catch (Exception ex)
+        {
+            return Errors.ErrorDeviceFileTransferSession.AddMetadata("exception", ex.Message);
+        }
 
         _ = Task.Run(() =>
         {
             Token.Wait();
             Stop();
         });
+
+        return Errors.ErrorNone;
     }
 
     public void Stop()
@@ -465,7 +467,7 @@ internal record OppServerSession(
 
     public void CancelTransfer()
     {
-        CancelFunc?.Invoke();
+        _cancelFunc?.Invoke();
     }
 
     public void Dispose()
@@ -476,7 +478,7 @@ internal record OppServerSession(
         {
             if (IsMainServer)
             {
-                foreach (var session in Sessions.EnumerateSessions<OppServerSession>())
+                foreach (var session in Sessions?.EnumerateSessions<OppServerSession>()!)
                 {
                     if (session.IsMainServer)
                         continue;
@@ -484,17 +486,21 @@ internal record OppServerSession(
                     session.Stop();
                 }
 
-                Server.Dispose();
+                _oppServer.Dispose();
                 Token.Release();
             }
         }
         catch { }
     }
 
-    private void AddSubSession(string address, Action cancelFunc)
+    private async Task AddSubSession(string address, Action cancelFunc)
     {
         if (!Sessions.GetServerSession(Token, address, out _, out _))
-            Sessions.Start(Token, address, new OppServerSession(false, null, cancelFunc));
+            await Sessions.Start(
+                Token,
+                address,
+                new OppServerSession(false, DestinationDirectory) { _cancelFunc = cancelFunc }
+            );
     }
 
     private void RemoveSubSession(string address)
@@ -504,7 +510,7 @@ internal record OppServerSession(
     }
 }
 
-internal record OppClientSession(BluetoothOppClientSession Client) : IOppSession
+internal sealed record OppClientSession : IOppSession
 {
     private readonly BlockingCollection<string> _filequeue = [];
 
@@ -512,51 +518,92 @@ internal record OppClientSession(BluetoothOppClientSession Client) : IOppSession
 
     private string AddressString => Address.ToString("C");
 
-    OppClientSession IOppSession.Client => this;
-    OppServerSession IOppSession.Server => null;
-
     public BluetoothAddress Address { get; set; }
     public OperationToken Token { get; set; }
 
     public OppSessions Sessions { get; set; }
+    private BluetoothOppClientSession OppClient { get; set; }
+    private BluetoothDevice _device;
+    private bool _disposed;
 
-    public void Start()
+    public async Task<ErrorData> Start()
     {
-        var fileTransferEvent = new FileTransferEvent();
-
-        Client.ObexClient.TransferEventHandler += (_, e) =>
+        try
         {
-            fileTransferEvent.Name = e.Name;
-            fileTransferEvent.FileName = e.FileName;
-            fileTransferEvent.Address = AddressString;
-            fileTransferEvent.FileSize = e.FileSize;
-            fileTransferEvent.BytesTransferred = e.BytesTransferred;
-            fileTransferEvent.Status = TransferStatus.Active;
-            fileTransferEvent.Action = IEvent.EventAction.Updated;
+            _device = await DeviceUtils.GetBluetoothDeviceWithService(
+                AddressString,
+                BluetoothService.ObexObjectPush
+            );
 
-            if (e.Name != "")
-                fileTransferEvent.Action = IEvent.EventAction.Added;
+            var client = new BluetoothOppClientSession(_device, Token.LinkedCancelTokenSource);
+            await client.ConnectAsync();
+            if (client.ObexClient == null)
+                throw new Exception("OPP ObexClient is null on connect");
 
-            if (e.Error)
-                fileTransferEvent.Status = TransferStatus.Error;
-            else if (e.TransferDone)
-                fileTransferEvent.Status = TransferStatus.Complete;
+            OppClient = client;
+            OperationManager.SetOperationProperties(Token, true, true);
 
-            Output.Event(fileTransferEvent, Token);
-        };
+            var fileTransferData = new FileTransferEventCombined();
 
-        OperationManager.SetOperationProperties(Token, true, true);
+            client.ObexClient.TransferEventHandler += (_, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Name) && e.Name != fileTransferData.Name)
+                {
+                    fileTransferData.Action = IEvent.EventAction.Added;
+                }
+                else
+                {
+                    fileTransferData.Action = IEvent.EventAction.Updated;
+                }
 
-        _ = Task.Run(RunTask);
-        return;
+                fileTransferData.Name = e.Name;
+                fileTransferData.FileName = e.FileName;
+                fileTransferData.Address = AddressString;
+                fileTransferData.FileSize = e.FileSize;
+                fileTransferData.BytesTransferred = e.BytesTransferred;
+                fileTransferData.Status = TransferStatus.Active;
+
+                if (e.Queued)
+                    fileTransferData.Status = TransferStatus.Queued;
+
+                if (e.Error)
+                    fileTransferData.Status = TransferStatus.Error;
+                else if (e.TransferDone)
+                    fileTransferData.Status = TransferStatus.Complete;
+
+                Output.Event(fileTransferData, Token);
+
+                if (e.Error || e.TransferDone)
+                {
+                    fileTransferData.Action = IEvent.EventAction.Removed;
+                    Output.Event(fileTransferData, Token);
+                }
+            };
+
+            _device.ConnectionStatusChanged += OnDeviceOnConnectionStatusChanged;
+
+            _ = Task.Run(RunTask);
+            return Errors.ErrorNone;
+        }
+        catch (Exception ex)
+        {
+            return Errors.ErrorDeviceFileTransferSession.AddMetadata("exception", ex.Message);
+        }
 
         async Task RunTask()
         {
             await FilesQueueProcessor(Token.CancelTokenSource.Token);
-            Client.ObexClient.TransferEventHandler = null;
+
+            if (OppClient.ObexClient != null)
+                OppClient.ObexClient.TransferEventHandler = null;
 
             Stop();
         }
+    }
+
+    private void OnDeviceOnConnectionStatusChanged(BluetoothDevice _, object args)
+    {
+        Stop();
     }
 
     public void Stop()
@@ -572,17 +619,33 @@ internal record OppClientSession(BluetoothOppClientSession Client) : IOppSession
 
     public void Dispose()
     {
-        _semaphore.Wait();
+        if (_disposed)
+            return;
 
-        _filequeue?.CompleteAdding();
+        try
+        {
+            _semaphore.Wait();
 
-        Token.Release();
+            _filequeue?.CompleteAdding();
+            OppClient?.Dispose();
 
-        Client?.Dispose();
+            if (!Token.IsReleased())
+                Token.Release();
 
-        _semaphore.Release();
+            if (_device != null)
+            {
+                _device.ConnectionStatusChanged -= OnDeviceOnConnectionStatusChanged;
+                _device.Dispose();
+            }
+        }
+        catch { }
+        finally
+        {
+            _semaphore.Release();
 
-        Sessions?.RemoveSession(this);
+            _disposed = true;
+            Sessions?.RemoveSession(this);
+        }
     }
 
     public async Task<ErrorData> SendFileAsync(string filepath)
@@ -590,10 +653,10 @@ internal record OppClientSession(BluetoothOppClientSession Client) : IOppSession
         try
         {
             await _semaphore.WaitAsync();
-            var task = Client.ObexClient?.SendFile(filepath);
+            var task = OppClient.ObexClient?.SendFile(filepath);
             _semaphore.Release();
 
-            await task;
+            await (task ?? Task.CompletedTask);
         }
         catch (Exception e)
         {
@@ -647,7 +710,7 @@ internal record OppClientSession(BluetoothOppClientSession Client) : IOppSession
         {
             foreach (var filepath in _filequeue.GetConsumingEnumerable(token))
             {
-                if (Client?.ObexClient == null)
+                if (OppClient?.ObexClient == null)
                     return;
 
                 if (await SendFileAsync(filepath) is var error && error != Errors.ErrorNone)
@@ -657,24 +720,19 @@ internal record OppClientSession(BluetoothOppClientSession Client) : IOppSession
         catch { }
     }
 
-    private ErrorData CancelClientFileTransfer()
+    private void CancelClientFileTransfer()
     {
         try
         {
             _semaphore.Wait();
 
-            Client?.ObexClient.CancelTransfer();
             _filequeue?.CompleteAdding();
+            OppClient?.ObexClient?.CancelTransfer();
         }
-        catch (Exception e)
-        {
-            return Errors.ErrorDeviceFileTransferSession.AddMetadata("exception", e.Message);
-        }
+        catch { }
         finally
         {
             _semaphore.Release();
         }
-
-        return Errors.ErrorNone;
     }
 }

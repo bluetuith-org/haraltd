@@ -6,9 +6,12 @@ using Haraltd.DataTypes.Serializer;
 
 namespace Haraltd.DataTypes.Models;
 
-public interface IFileTransfer : IFileTransferEvent;
+public abstract record FileTransferBaseModel : FileTransferEventBaseModel, IFileTransfer
+{
+    public string Name { get; set; }
 
-public abstract record FileTransferBaseModel : FileTransferEventBaseModel, IFileTransfer;
+    public string FileName { get; set; }
+}
 
 public record FileTransferModel : FileTransferBaseModel, IResult
 {

@@ -79,6 +79,30 @@ public static class AuthenticationManager
         return Errors.ErrorNone;
     }
 
+    public static bool IsAgent(Guid clientId, AuthAgentType authAgentType)
+    {
+        if (clientId == Guid.Empty)
+            return false;
+
+        var isAgent = false;
+        switch (authAgentType)
+        {
+            case AuthAgentType.Pairing:
+                _pairingAgent.Read(out var pairingAgent);
+                isAgent = pairingAgent == clientId;
+                break;
+            case AuthAgentType.Obex:
+                _obexAgent.Read(out var obexAgent);
+                isAgent = obexAgent == clientId;
+                break;
+            case AuthAgentType.None:
+            default:
+                return false;
+        }
+
+        return isAgent;
+    }
+
     internal static void RemoveAgentsAndEvents(Guid clientId)
     {
         UnregisterAuthAgent(AuthAgentType.Pairing, clientId);

@@ -170,21 +170,21 @@ public record PairingAuthenticationEvent : AuthenticationEvent
 
 public record OppAuthenticationEvent : AuthenticationEvent
 {
-    private readonly IFileTransferEvent _fileTransferEvent;
+    private readonly IFileTransfer _fileTransferData;
 
     public OppAuthenticationEvent(
         int timeout,
-        IFileTransferEvent fileTransferEvent,
+        IFileTransfer fileTransferData,
         OperationToken.OperationToken token
     )
         : base(timeout, AuthenticationReplyMethod.ReplyYesNo, token)
     {
-        _fileTransferEvent = fileTransferEvent;
+        _fileTransferData = fileTransferData;
     }
 
     public override string ToConsoleString()
     {
-        return $"Accept file {_fileTransferEvent.Name} from address {_fileTransferEvent.Address} (y/n)";
+        return $"Accept file {_fileTransferData.Name} from address {_fileTransferData.Address} (y/n)";
     }
 
     public override void WriteJsonToStream(Utf8JsonWriter writer)
@@ -194,7 +194,7 @@ public record OppAuthenticationEvent : AuthenticationEvent
             AuthId = CurrentAuthId,
             AuthEvent = AuthenticationEventType.AuthorizeTransfer,
             AuthReplyMethod = AuthenticationReplyMethod.ReplyYesNo,
-            TransferEvent = _fileTransferEvent,
+            TransferEvent = _fileTransferData,
             TimeoutMs = TimeoutMs,
         };
 
@@ -205,6 +205,6 @@ public record OppAuthenticationEvent : AuthenticationEvent
     public class OppParameters : AuthenticationParameters
     {
         [JsonPropertyName("file_transfer")]
-        public IFileTransferEvent TransferEvent { get; set; }
+        public IFileTransfer TransferEvent { get; set; }
     }
 }

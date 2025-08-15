@@ -5,10 +5,6 @@ namespace Haraltd.Stack.Microsoft.Windows;
 
 internal record WindowsOppAuthEvent : OppAuthenticationEvent
 {
-    public WindowsOppAuthEvent(
-        int timeout,
-        IFileTransferEvent fileTransferEvent,
-        OperationToken token
-    )
-        : base(timeout, fileTransferEvent, token) { }
+    public WindowsOppAuthEvent(int timeout, IFileTransfer fileTransferData, OperationToken token)
+        : base(timeout, fileTransferData, token) { }
 }

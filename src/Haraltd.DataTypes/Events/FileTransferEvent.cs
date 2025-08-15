@@ -8,6 +8,17 @@ using static Haraltd.DataTypes.Generic.IEvent;
 
 namespace Haraltd.DataTypes.Events;
 
+public interface IFileTransfer : IFileTransferEvent
+{
+    [JsonPropertyName("name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string Name { get; set; }
+
+    [JsonPropertyName("filename")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string FileName { get; set; }
+}
+
 public interface IFileTransferEvent
 {
     [JsonConverter(typeof(JsonStringEnumConverter<TransferStatus>))]
@@ -20,16 +31,8 @@ public interface IFileTransferEvent
         Error,
     }
 
-    [JsonPropertyName("name")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string Name { get; set; }
-
     [JsonPropertyName("address")]
     public string Address { get; set; }
-
-    [JsonPropertyName("filename")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string FileName { get; set; }
 
     [JsonPropertyName("size")]
     public long FileSize { get; set; }
@@ -47,10 +50,6 @@ public abstract record FileTransferEventBaseModel : IFileTransferEvent
 {
     public string Address { get; set; } = "";
 
-    public string Name { get; set; } = "";
-
-    public string FileName { get; set; } = "";
-
     public long FileSize { get; set; }
 
     public long BytesTransferred { get; set; }
@@ -59,8 +58,6 @@ public abstract record FileTransferEventBaseModel : IFileTransferEvent
 
     public void AppendEventProperties(ref StringBuilder stringBuilder)
     {
-        stringBuilder.Append($"Name: {Name}, ");
-        stringBuilder.Append($"File: {FileName}, ");
         stringBuilder.Append($"Address: {Address}, ");
         stringBuilder.Append($"Progress: {BytesTransferred} b/{FileSize} b");
     }
@@ -72,7 +69,7 @@ public record FileTransferEvent : FileTransferEventBaseModel, IEvent
 
     public EventAction Action { get; set; } = EventAction.Added;
 
-    public string ToConsoleString()
+    public virtual string ToConsoleString()
     {
         StringBuilder stringBuilder = new();
 
@@ -82,9 +79,25 @@ public record FileTransferEvent : FileTransferEventBaseModel, IEvent
         return stringBuilder.ToString();
     }
 
-    public void WriteJsonToStream(Utf8JsonWriter writer)
+    public virtual void WriteJsonToStream(Utf8JsonWriter writer)
     {
         writer.WritePropertyName(SerializableContext.FileTransferEventPropertyName);
-        (this as IFileTransferEvent).SerializeAll(writer);
+        (this as IFileTransferEvent).SerializeSelected(writer);
+    }
+}
+
+public record FileTransferEventCombined : FileTransferEvent, IFileTransfer
+{
+    public string Name { get; set; }
+
+    public string FileName { get; set; }
+
+    public override void WriteJsonToStream(Utf8JsonWriter writer)
+    {
+        writer.WritePropertyName(SerializableContext.FileTransferEventPropertyName);
+        if (Action == EventAction.Added)
+            (this as IFileTransfer).SerializeAll(writer);
+        else
+            (this as IFileTransferEvent).SerializeSelected(writer);
     }
 }
