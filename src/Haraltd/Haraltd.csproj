@@ -12,7 +12,6 @@
     <SignAssembly>False</SignAssembly>
     <MinVerTagPrefix>v</MinVerTagPrefix>
     <OutputType>Exe</OutputType>
-    <OutputPath>$(Temp)/MSBuild/$(MSBuildProjectName)/</OutputPath>
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
