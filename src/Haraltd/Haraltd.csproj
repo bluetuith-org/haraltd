@@ -11,6 +11,7 @@
   <PropertyGroup>
     <SignAssembly>False</SignAssembly>
     <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerIgnoreHeight>true</MinVerIgnoreHeight>
     <OutputType>Exe</OutputType>
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>

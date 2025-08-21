@@ -23,3 +23,4 @@ publish = false
 publish = false
 [changelog]
 path = "../CHANGELOG.md"
+publish = false
