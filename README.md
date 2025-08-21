@@ -112,11 +112,6 @@ haraltd device connect a2dp -a <address>
 ```
 (Note that the application has to remain open to maintain the session. Closing the app will close the session.)
 
-- To start an Object Push Profile session with a device:
-	- To send file(s): `haraltd device connect opp send-files -a <address> -f <path-to-file> -f <another-file> -f ...`
-	- To listen for and receive files: `haraltd device connect opp start-server -d <directory-path-to-save-transferred-files>`
-	(Press Ctrl-C to stop the server)
-
 - To disconnect a connected device:
 ```
 haraltd device disconnect -a <address>
