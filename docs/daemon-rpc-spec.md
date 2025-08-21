@@ -468,7 +468,7 @@ var features = Connection | Pairing | SendFile | ReceiveFile // features = 30
 ---
 
 #### 3.3.2.6. Adapter
-This type of response respresents the full properties of an adapter (i.e. when the [`adapter properties`](#3326-adapter-properties) method is called).
+This type of response respresents the full properties of an adapter (i.e. when the [`adapter properties`](#3522-adapter-properties) method is called).
 
 _Format:_
 ```javascript
@@ -628,7 +628,7 @@ _Format_:
 ---
 
 #### 3.3.2.8. Device
-This type of response respresents the full properties of a device (i.e. when the [`device properties`](#3328-device-properties) method is called).
+This type of response respresents the full properties of a device (i.e. when the [`device properties`](#3531-device-properties) method is called).
 
 _Format:_
 ```javascript
@@ -807,7 +807,7 @@ _Format:_
 ---
 
 #### 3.3.2.10. File transfer
-This type of response alone is usually only sent by the [`device opp send-file`](#3328-device-opp-send-file) command to indicate that a file transfer is queued for sending.
+This type of response alone is usually only sent by the [`device opp send-file`](#3539-device-opp-send-file) command to indicate that a file transfer is queued for sending.
 
 _Format:_
 ```javascript
@@ -895,11 +895,11 @@ Where:
 **Required**. The **event_id** and the **event** property must be mapped according to this table:
 | Event ID | Event Property                                                                                                                                      |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1        | [Error Event](#3322-error-event)                                                                                                                         |
-| 2        | [Adapter Event](#3326-adapter-event)                                                                                                                     |
-| 3        | [Device Event](#3328-device-event)                                                                                                                       |
-| 4        | [File Transfer Event](#33210-file-transfer-event)                                                                                                         |
-| 6        | Either of [Pairing Authentication Event](#3335-pairing-authentication-event) or [File Transfer Authentication Event](file-transfer-authentication-event) |
+| 1        | [Error Event](#3331-error-event)                                                                                                                         |
+| 2        | [Adapter Event](#3332-adapter-event)                                                                                                                     |
+| 3        | [Device Event](#3333-device-event)                                                                                                                       |
+| 4        | [File Transfer Event](#3334-file-transfer-event)                                                                                                         |
+| 6        | Either of [Pairing Authentication Event](#3335-pairing-authentication-event) or [File Transfer Authentication Event](#3336-file-transfer-authentication-event) |
 
 
 - #### event_action
@@ -1338,7 +1338,7 @@ The response sent after this timeframe is not guaranteed to be parsed by the cli
 Within the server, all long running methods (for example, device discovery, file transfer etc.) must:
 - Use [events](#333-events) to send updated information to the client.
 - Run the operation in the background, and return a response that reflects the state of the operation immediately.
-- If any errors occurs during the operation well after returning the response to the client, an [Error Event](#3322-error-event) must be sent reflecting the state of the operation.
+- If any errors occurs during the operation well after returning the response to the client, an [Error Event](#3331-error-event) must be sent reflecting the state of the operation.
 
 The server may impose limits on the amount of concurrency and may stop reading from the client when server buffers are full. It is the client's responsibility to avoid concurrent-writing-induced deadlocks.
 
@@ -1444,7 +1444,7 @@ Options: None
 
 _Response values:_
   
-- If the operation has run _Successfully_, the JSON response is: [Adapters](#3326-adapters)
+- If the operation has run _Successfully_, the JSON response is: [Adapters](#3327-adapters)
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
@@ -1485,12 +1485,12 @@ The device discovery flow is as follows:
 - The server starts the device discovery, and immediately returns an [OK](#3321-ok) response if the discovery has started,
 or an [Error](#3322-error), if the discovery stopped with errors
 - Once the discovery is in progress:
-  - An [Adapter Event](#3326-adapter-event) must be sent with the **event_action** as **updated** and the **Discovering** property set to true.
-  - Any discovered devices must be sent as a [Device Event](#3328-device-event) to the client, with:
+  - An [Adapter Event](#3332-adapter-event) must be sent with the **event_action** as **updated** and the **Discovering** property set to true.
+  - Any discovered devices must be sent as a [Device Event](#3333-device-event) to the client, with:
     - The **event_action** as **added**, if devices are visible, or
     - The **event_action** as **removed**, if devices are no longer visible.
 - When discovery has stopped:
-  - An [Adapter Event](#3326-adapter-event) must be sent, with the **event_action** as **updated** and with the **Discovering** property set to false.
+  - An [Adapter Event](#3332-adapter-event) must be sent, with the **event_action** as **updated** and with the **Discovering** property set to false.
 
 The **updated** event_action is not valid in this context.
 
@@ -1734,10 +1734,10 @@ Once a session is started with a device, this method call must return an [OK](#3
 A session should be able to queue files that are sent by the client, and send each
 file one-by-one to the remote device. 
 
-For each outgoing file transfer, [File Transfer Events](#33210-file-transfer-events) must be sent to all connected clients. 
+For each outgoing file transfer, [File Transfer Events](#3334-file-transfer-event) must be sent to all connected clients. 
 
 Each file transfer event must have an **"updated"** [event action](#333-events).
-Ensure that the **"status"** property for each [File Transfer Event](#33210-file-transfer-events) is set to:
+Ensure that the **"status"** property for each [File Transfer Event](#3334-file-transfer-event) is set to:
 -  `"active"` for the ongoing file transfer,
 - `"complete"` for the completed file transfer, and
 - `"error"` if any errors occurred during the file transfer.
@@ -1747,7 +1747,7 @@ The `queued` **"status"** value is not valid in this context.
 
 #### 3.5.3.9. device opp send-file
 
-Send a file to a device with an open session. Use "[device opp start-session](#3328-device-opp-start-session)" to start a session with a device first before calling this method.
+Send a file to a device with an open session. Use "[device opp start-session](#3538-device-opp-start-session)" to start a session with a device first before calling this method.
 
 | Option | Required | Default Value | Description                      |
 | ------ | -------- | ------------- | -------------------------------- |
@@ -1847,10 +1847,10 @@ the following well defined paths:
 | MacOS                             | `$HOME/Library/Caches/haraltd/transfers`                                                                        |
 | Other UNIX like operating systems | If **$XDG_CACHE_HOME** is defined, ` $XDG_CACHE_HOME/haraltd/transfers`, else ` $HOME/.cache/haraltd/transfers` |
 
-For any incoming file transfers, [File Transfer Events](#33210-file-transfer-events) must be sent to all connected clients. 
+For any incoming file transfers, [File Transfer Events](#3334-file-transfer-event) must be sent to all connected clients. 
 
 Each file transfer event must have an **"updated"** [event action](#333-events).
-Ensure that the **"status"** property for each [File Transfer Event](#33210-file-transfer-events) is set to:
+Ensure that the **"status"** property for each [File Transfer Event](#3334-file-transfer-event) is set to:
 -  `"active"` for the ongoing file transfer,
 - `"complete"` for the completed file transfer, and
 - `"error"` if any errors occurred during the file transfer.
