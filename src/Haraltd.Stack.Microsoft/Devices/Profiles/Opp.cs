@@ -358,7 +358,7 @@ internal sealed record OppServerSession(bool IsMainServer, string DestinationDir
                 DestinationDirectory,
                 data =>
                 {
-                    var fileTransferEvent = new FileTransferEventCombined()
+                    var fileTransferEvent = new FileTransferEventCombined(true)
                     {
                         Name = data.FileName,
                         FileName = data.FilePath,
@@ -384,7 +384,7 @@ internal sealed record OppServerSession(bool IsMainServer, string DestinationDir
             _oppServer.ClientAccepted += (_, args) =>
             {
                 var address = DeviceUtils.HostAddress(args.ClientInfo.HostName.RawName);
-                var fileTransferData = new FileTransferEventCombined();
+                var fileTransferData = new FileTransferEventCombined(true);
 
                 AddSubSession(address, () => args.ObexServer.StopServer()).Wait();
 
@@ -402,6 +402,7 @@ internal sealed record OppServerSession(bool IsMainServer, string DestinationDir
                         fileTransferData.Action = IEvent.EventAction.Updated;
                     }
 
+                    fileTransferData.Name = e.FileName;
                     fileTransferData.FileName = e.FilePath;
                     fileTransferData.Address = address;
                     fileTransferData.FileSize = e.FileSize;
@@ -427,6 +428,8 @@ internal sealed record OppServerSession(bool IsMainServer, string DestinationDir
                     {
                         fileTransferData.Action = IEvent.EventAction.Removed;
                         Output.Event(fileTransferData, Token);
+
+                        fileTransferData.RegenerateIds();
                     }
                 };
             };
@@ -512,7 +515,7 @@ internal sealed record OppServerSession(bool IsMainServer, string DestinationDir
 
 internal sealed record OppClientSession : IOppSession
 {
-    private readonly BlockingCollection<string> _filequeue = [];
+    private readonly BlockingCollection<FileTransferModel> _filequeue = [];
 
     private readonly SemaphoreSlim _semaphore = new(1, 1);
 
@@ -543,7 +546,7 @@ internal sealed record OppClientSession : IOppSession
             OppClient = client;
             OperationManager.SetOperationProperties(Token, true, true);
 
-            var fileTransferData = new FileTransferEventCombined();
+            var fileTransferData = new FileTransferEventCombined(false);
 
             client.ObexClient.TransferEventHandler += (_, e) =>
             {
@@ -562,6 +565,8 @@ internal sealed record OppClientSession : IOppSession
                 fileTransferData.FileSize = e.FileSize;
                 fileTransferData.BytesTransferred = e.BytesTransferred;
                 fileTransferData.Status = TransferStatus.Active;
+                fileTransferData.SessionId = e.SessionId;
+                fileTransferData.TransferId = e.TransferId;
 
                 if (e.Queued)
                     fileTransferData.Status = TransferStatus.Queued;
@@ -582,7 +587,7 @@ internal sealed record OppClientSession : IOppSession
 
             _device.ConnectionStatusChanged += OnDeviceOnConnectionStatusChanged;
 
-            _ = Task.Run(RunTask);
+            _ = Task.Run(() => RunTask(fileTransferData));
             return Errors.ErrorNone;
         }
         catch (Exception ex)
@@ -590,7 +595,7 @@ internal sealed record OppClientSession : IOppSession
             return Errors.ErrorDeviceFileTransferSession.AddMetadata("exception", ex.Message);
         }
 
-        async Task RunTask()
+        async Task RunTask(FileTransferEventCombined combinedEvent)
         {
             await FilesQueueProcessor(Token.CancelTokenSource.Token);
 
@@ -650,10 +655,23 @@ internal sealed record OppClientSession : IOppSession
 
     public async Task<ErrorData> SendFileAsync(string filepath)
     {
+        var (filetransfer, error) = GetInfo(filepath);
+        if (error == Errors.ErrorNone)
+            return await SendFileAsync(filetransfer);
+
+        return error;
+    }
+
+    public async Task<ErrorData> SendFileAsync(FileTransferModel fileTransfer)
+    {
         try
         {
             await _semaphore.WaitAsync();
-            var task = OppClient.ObexClient?.SendFile(filepath);
+            var task = OppClient.ObexClient?.SendFile(
+                fileTransfer.FileName,
+                fileTransfer.SessionId,
+                fileTransfer.TransferId
+            );
             _semaphore.Release();
 
             await (task ?? Task.CompletedTask);
@@ -669,8 +687,25 @@ internal sealed record OppClientSession : IOppSession
 
     public (FileTransferModel, ErrorData) QueueFileSend(string filepath)
     {
-        long size;
-        var fileTransferEvent = new FileTransferModel
+        var (fileTransfer, error) = GetInfo(filepath);
+        if (error == Errors.ErrorNone)
+        {
+            try
+            {
+                _filequeue.Add(fileTransfer);
+            }
+            catch (Exception e)
+            {
+                error = Errors.ErrorDeviceFileTransferSession.AddMetadata("exception", e.Message);
+            }
+        }
+
+        return (fileTransfer, error);
+    }
+
+    private (FileTransferModel, ErrorData) GetInfo(string filepath)
+    {
+        var fileTransfer = new FileTransferModel
         {
             Address = AddressString,
             Name = Path.GetFileName(filepath),
@@ -680,40 +715,33 @@ internal sealed record OppClientSession : IOppSession
         try
         {
             var info = new FileInfo(filepath);
-            size = info.Length;
 
-            _filequeue.Add(filepath);
+            fileTransfer.FileSize = info.Length;
+            fileTransfer.Name = info.Name;
+            fileTransfer.FileName = info.FullName;
+            fileTransfer.Status = TransferStatus.Queued;
         }
         catch (Exception e)
         {
             return (
-                fileTransferEvent,
+                fileTransfer,
                 Errors.ErrorDeviceFileTransferSession.AddMetadata("exception", e.Message)
             );
         }
 
-        return (
-            fileTransferEvent with
-            {
-                FileName = filepath,
-                Address = AddressString,
-                Status = TransferStatus.Queued,
-                FileSize = size,
-            },
-            Errors.ErrorNone
-        );
+        return (fileTransfer, Errors.ErrorNone);
     }
 
     private async Task FilesQueueProcessor(CancellationToken token)
     {
         try
         {
-            foreach (var filepath in _filequeue.GetConsumingEnumerable(token))
+            foreach (var fileTransfer in _filequeue.GetConsumingEnumerable(token))
             {
                 if (OppClient?.ObexClient == null)
                     return;
 
-                if (await SendFileAsync(filepath) is var error && error != Errors.ErrorNone)
+                if (await SendFileAsync(fileTransfer) is var error && error != Errors.ErrorNone)
                     Output.Event(error, Token);
             }
         }

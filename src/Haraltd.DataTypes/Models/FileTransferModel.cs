@@ -11,6 +11,8 @@ public abstract record FileTransferBaseModel : FileTransferEventBaseModel, IFile
     public string Name { get; set; }
 
     public string FileName { get; set; }
+
+    public bool Receiving { get; set; }
 }
 
 public record FileTransferModel : FileTransferBaseModel, IResult

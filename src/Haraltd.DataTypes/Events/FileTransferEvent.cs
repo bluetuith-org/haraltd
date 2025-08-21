@@ -17,6 +17,10 @@ public interface IFileTransfer : IFileTransferEvent
     [JsonPropertyName("filename")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string FileName { get; set; }
+
+    [JsonPropertyName("receiving")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Receiving { get; set; }
 }
 
 public interface IFileTransferEvent
@@ -43,7 +47,21 @@ public interface IFileTransferEvent
     [JsonPropertyName("status")]
     public TransferStatus Status { get; set; }
 
-    public void AppendEventProperties(ref StringBuilder stringBuilder);
+    [JsonPropertyName("transfer_id")]
+    public string TransferId { get; set; }
+
+    [JsonPropertyName("session_id")]
+    public string SessionId { get; set; }
+
+    public static string GenerateSessionId()
+    {
+        return $"sid{Random.Shared.Next(1, ushort.MaxValue)}";
+    }
+
+    public static string GenerateTransferId(string sessionId)
+    {
+        return $"{sessionId}/tid{Random.Shared.Next(1, ushort.MaxValue)}";
+    }
 }
 
 public abstract record FileTransferEventBaseModel : IFileTransferEvent
@@ -55,6 +73,21 @@ public abstract record FileTransferEventBaseModel : IFileTransferEvent
     public long BytesTransferred { get; set; }
 
     public TransferStatus Status { get; set; }
+
+    public string TransferId { get; set; }
+
+    public string SessionId { get; set; }
+
+    protected FileTransferEventBaseModel()
+    {
+        RegenerateIds();
+    }
+
+    public void RegenerateIds()
+    {
+        SessionId = GenerateSessionId();
+        TransferId = GenerateTransferId(SessionId);
+    }
 
     public void AppendEventProperties(ref StringBuilder stringBuilder)
     {
@@ -86,11 +119,12 @@ public record FileTransferEvent : FileTransferEventBaseModel, IEvent
     }
 }
 
-public record FileTransferEventCombined : FileTransferEvent, IFileTransfer
+public record FileTransferEventCombined(bool Receiving) : FileTransferEvent, IFileTransfer
 {
     public string Name { get; set; }
 
     public string FileName { get; set; }
+    public bool Receiving { get; set; } = Receiving;
 
     public override void WriteJsonToStream(Utf8JsonWriter writer)
     {
