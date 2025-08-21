@@ -1,5 +1,5 @@
 # haraltd
-A daemon and command-line tool to use Bluetooth Classic features on Windows.<br />
+A daemon and command-line tool to use Bluetooth Classic features.<br />
 Part of the cross-platform work for the [bluetuith](https://github.com/darkhz/bluetuith) project.
 
 This is alpha-grade software.
@@ -11,7 +11,11 @@ This project is funded through [NGI Zero Core](https://nlnet.nl/core), a fund es
 [<img src="https://nlnet.nl/logo/banner.png" alt="NLnet foundation logo" width="20%" />](https://nlnet.nl)
 [<img src="https://nlnet.nl/image/logos/NGI0_tag.svg" alt="NGI Zero Logo" width="20%" />](https://nlnet.nl/core)
 
+# Features
+The available features per-platform are [here](https://github.com/bluetuith-org/bluetooth-classic?tab=readme-ov-file#feature-matrix).
+
 # Requirements
+## Windows
 - Windows 10 19041 or later.
 - Administrator access for certain Registry-related APIs.
 
@@ -21,11 +25,11 @@ Microsoft SmartScreen warnings may pop up. Press "Run anyway" to run the applica
 Also, Windows Security (i.e. Antimalware Service Executable) may try to scan the application while it is being launched,
 which will delay and increase the startup time.
 
-# Download and Installation
+### Download and Installation
 All downloads can be found within the 'Releases' page of the repository.
 
 - Download the binary that matches your CPU architecture to a known path.
-- Open CMD or Powershell, and run the binary.
+- Open CMD or Powershell, and run the binary (or alternatively, double-click on the executable to launch the daemon).
 
 # Documentation
 This documentation is mostly a quick-start guide. Detailed documentation will come later.
@@ -113,13 +117,6 @@ haraltd device connect a2dp -a <address>
 	- To listen for and receive files: `haraltd device connect opp start-server -d <directory-path-to-save-transferred-files>`
 	(Press Ctrl-C to stop the server)
 
-- To start a Phonebook Access Profile session with a device:
-	- To get all contacts: `haraltd device connect pbap get-all-contacts -a <address>`
-	- To get combined call history: `haraltd device connect pbap get-combined-calls -a <address>`
-
-More subcommands for the `pbap` command can be listed using: `haraltd device connect pbap --help`.<br />
-Similarly, more subcommands for each profile can be listed using: `haraltd device connect <profile-name> --help`.<br />
-
 - To disconnect a connected device:
 ```
 haraltd device disconnect -a <address>
@@ -139,6 +136,7 @@ To start the server over a socket:
 haraltd server start
 ```
 A socket will be automatically created, a popup will be displayed, and a system tray icon will be created once the service starts.
+The tray icon can be right-clicked to show options (for example, to stop the daemon).
 
 To stop the server:
 ```
