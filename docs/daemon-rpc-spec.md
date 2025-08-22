@@ -5,6 +5,7 @@
 This document describes how to perform RPC related operations with the daemon.
 This API is currently subject to changes.
 
+
 <!-- omit from toc -->
 # Table Of Contents
 
@@ -12,13 +13,13 @@ This API is currently subject to changes.
   - [1.1. arrayOf(\<value\>)](#11-arrayofvalue)
   - [1.2. oneOf("\<value1\>"|"\<value2\>"|...)](#12-oneofvalue1value2)
 - [2. Communication](#2-communication)
-  - [2.1. Server](#21-server)
+  - [2.1. daemon](#21-daemon)
   - [2.2. Client](#22-client)
 - [3. Protocol](#3-protocol)
   - [3.1. Message Format](#31-message-format)
   - [3.2. Message Types](#32-message-types)
     - [3.2.1. Client](#321-client)
-    - [3.2.2. Server](#322-server)
+    - [3.2.2. daemon](#322-daemon)
   - [3.3. Messages specification](#33-messages-specification)
     - [3.3.1. Requests](#331-requests)
     - [3.3.2. Responses](#332-responses)
@@ -39,40 +40,43 @@ This API is currently subject to changes.
       - [3.3.3.4. File Transfer Event](#3334-file-transfer-event)
       - [3.3.3.5. Pairing Authentication Event](#3335-pairing-authentication-event)
       - [3.3.3.6. File Transfer Authentication Event](#3336-file-transfer-authentication-event)
-- [3.4. Commands](#34-commands)
-  - [3.4.0.1. Method Invocation](#3401-method-invocation)
-  - [3.4.0.2. Command Format](#3402-command-format)
-  - [3.5. Command List](#35-command-list)
-    - [3.5.1. Rpc Session Command Section](#351-rpc-session-command-section)
-      - [3.5.1.1. rpc platform-info](#3511-rpc-platform-info)
-      - [3.5.1.2. rpc feature-flags](#3512-rpc-feature-flags)
-      - [3.5.1.3. rpc version](#3513-rpc-version)
-      - [3.5.1.4. rpc auth](#3514-rpc-auth)
-    - [3.5.2. Adapter Commands Section](#352-adapter-commands-section)
-      - [3.5.2.1. adapter list](#3521-adapter-list)
-      - [3.5.2.2. adapter properties](#3522-adapter-properties)
-      - [3.5.2.3. adapter discovery start](#3523-adapter-discovery-start)
-      - [3.5.2.4. adapter discovery stop](#3524-adapter-discovery-stop)
-      - [3.5.2.5. adapter get-paired-devices](#3525-adapter-get-paired-devices)
-      - [3.5.2.6. adapter set-powered-state](#3526-adapter-set-powered-state)
-      - [3.5.2.7. adapter set-pairable-state](#3527-adapter-set-pairable-state)
-      - [3.5.2.8. adapter set-discoverable-state](#3528-adapter-set-discoverable-state)
-    - [3.5.3. Device Commands Section](#353-device-commands-section)
-      - [3.5.3.1. device properties](#3531-device-properties)
-      - [3.5.3.2. device pair](#3532-device-pair)
-      - [3.5.3.3. device pair cancel](#3533-device-pair-cancel)
-      - [3.5.3.4. device connect](#3534-device-connect)
-      - [3.5.3.5. device connect profile](#3535-device-connect-profile)
-      - [3.5.3.6. device disconnect](#3536-device-disconnect)
-      - [3.5.3.7. device remove](#3537-device-remove)
-      - [3.5.3.8. device opp start-session](#3538-device-opp-start-session)
-      - [3.5.3.9. device opp send-file](#3539-device-opp-send-file)
-      - [3.5.3.10. device opp cancel-transfer](#35310-device-opp-cancel-transfer)
-      - [3.5.3.11. device opp suspend-transfer](#35311-device-opp-suspend-transfer)
-      - [3.5.3.12. device opp resume-transfer](#35312-device-opp-resume-transfer)
-      - [3.5.3.13. device opp stop-session](#35313-device-opp-stop-session)
-      - [3.5.3.14. device opp start-server](#35314-device-opp-start-server)
-      - [3.5.3.15. device opp stop-server](#35315-device-opp-stop-server)
+- [4. Commands](#4-commands)
+  - [4.1. Method Invocation](#41-method-invocation)
+  - [4.2. Command Format](#42-command-format)
+  - [4.3. Authentication](#43-authentication)
+  - [4.4. Command List](#44-command-list)
+    - [4.4.1. Rpc Session Command Section](#441-rpc-session-command-section)
+      - [4.4.1.1. rpc platform-info](#4411-rpc-platform-info)
+      - [4.4.1.2. rpc feature-flags](#4412-rpc-feature-flags)
+      - [4.4.1.3. rpc version](#4413-rpc-version)
+      - [4.4.1.4. rpc auth](#4414-rpc-auth)
+      - [4.4.1.5. rpc agent register](#4415-rpc-agent-register)
+      - [4.4.1.6. rpc agent unregister](#4416-rpc-agent-unregister)
+    - [4.4.2. Adapter Commands Section](#442-adapter-commands-section)
+      - [4.4.2.1. adapter list](#4421-adapter-list)
+      - [4.4.2.2. adapter properties](#4422-adapter-properties)
+      - [4.4.2.3. adapter discovery start](#4423-adapter-discovery-start)
+      - [4.4.2.4. adapter discovery stop](#4424-adapter-discovery-stop)
+      - [4.4.2.5. adapter get-paired-devices](#4425-adapter-get-paired-devices)
+      - [4.4.2.6. adapter set-powered-state](#4426-adapter-set-powered-state)
+      - [4.4.2.7. adapter set-pairable-state](#4427-adapter-set-pairable-state)
+      - [4.4.2.8. adapter set-discoverable-state](#4428-adapter-set-discoverable-state)
+    - [4.4.3. Device Commands Section](#443-device-commands-section)
+      - [4.4.3.1. device properties](#4431-device-properties)
+      - [4.4.3.2. device pair](#4432-device-pair)
+      - [4.4.3.3. device pair cancel](#4433-device-pair-cancel)
+      - [4.4.3.4. device connect](#4434-device-connect)
+      - [4.4.3.5. device connect profile](#4435-device-connect-profile)
+      - [4.4.3.6. device disconnect](#4436-device-disconnect)
+      - [4.4.3.7. device remove](#4437-device-remove)
+      - [4.4.3.8. device opp start-session](#4438-device-opp-start-session)
+      - [4.4.3.9. device opp send-file](#4439-device-opp-send-file)
+      - [4.4.3.10. device opp cancel-transfer](#44310-device-opp-cancel-transfer)
+      - [4.4.3.11. device opp suspend-transfer](#44311-device-opp-suspend-transfer)
+      - [4.4.3.12. device opp resume-transfer](#44312-device-opp-resume-transfer)
+      - [4.4.3.13. device opp stop-session](#44313-device-opp-stop-session)
+      - [4.4.3.14. device opp start-daemon](#44314-device-opp-start-daemon)
+      - [4.4.3.15. device opp stop-daemon](#44315-device-opp-stop-daemon)
 
 
 # 1. Terminology
@@ -114,35 +118,35 @@ A JSON message matching the above specification would look like:
 ```
 
 # 2. Communication
-First, we'll establish the method for a RPC server and client to find and
+First, we'll establish the method for a RPC daemon and client to find and
 connect to each other.
 
-The communication between a server and client is done via **UNIX sockets** only,
+The communication between a daemon and client is done via **UNIX sockets** only,
 since it is a system related service.
 
-## 2.1. Server
-- The server must be started first (i.e. using the `server start` command, see [Commands](#34-commands)). All services related to the [features](#feature-flags) it advertises must be started first.
+## 2.1. daemon
+- The daemon must be started first (i.e. using the `daemon start` command, see [Commands](#4-commands)). All services related to the [features](#feature-flags) it advertises must be started first.
 
-- Then, the server must use the following well-defined paths to create the socket according to the operating system in use:
+- Then, the daemon must use the following well-defined paths to create the socket according to the operating system in use:
 	
 	
-| OS                                | Full path to socket                                                                                                   |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Windows                           | `%LocalAppData%\haraltd\hd.sock`                                                                                 |
-| MacOS                             | `$HOME/Library/Caches/haraltd/hd.sock`                                                                           |
+| OS                                | Full path to socket                                                                                         |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Windows                           | `%LocalAppData%\haraltd\hd.sock`                                                                            |
+| MacOS                             | `$HOME/Library/Caches/haraltd/hd.sock`                                                                      |
 | Other UNIX like operating systems | If **$XDG_CACHE_HOME** is defined, ` $XDG_CACHE_HOME/haraltd/hd.sock`, else ` $HOME/.cache/haraltd/hd.sock` |
 
-- After creating the socket, the server must start listening and accept any client connections. Currently, no authentication is implemented between a server and client, therefore clients can connect and send commands immediately.
+- After creating the socket, the daemon must start listening and accept any client connections. Currently, no authentication is implemented between a daemon and client, therefore clients can connect and send commands immediately.
 
 ## 2.2. Client
 
-Using the well defined paths above, clients can discover the running server according to the operating system they are running on.
+Using the well defined paths above, clients can discover the running daemon according to the operating system they are running on.
 
-Clients are currently allowed to send defined [commands](#34-commands) directly
+Clients are currently allowed to send defined [commands](#4-commands) directly
 without any authentication.
 
 # 3. Protocol
-Next, we'll define the protocol used to send messages and invoke commands from a client to the server.
+Next, we'll define the protocol used to send messages and invoke commands from a client to the daemon.
 
 ## 3.1. Message Format
 All messages are in the [JSON Lines](jsonlines.org) format.
@@ -152,16 +156,16 @@ All messages are in the [JSON Lines](jsonlines.org) format.
 ### 3.2.1. Client
 A client can send only [requests](#331-requests).
 
-The complete request must be serialized to bytes before sending it to the server.
+The complete request must be serialized to bytes before sending it to the daemon.
 
-### 3.2.2. Server
-A server can send only [responses](#332-responses) and [events](#333-events).
+### 3.2.2. daemon
+A daemon can send only [responses](#332-responses) and [events](#333-events).
 
 The complete response or event must be serialized to bytes before sending it to the client.
 
 Responses are **final**: no request will receive more than one final response.
 
-Events are fire-and-forget, and are not tracked by the server. Clients are not expected
+Events are fire-and-forget, and are not tracked by the daemon. Clients are not expected
 to track events, but to consume them and update their internal states as required.
 
 ## 3.3. Messages specification
@@ -178,9 +182,9 @@ The complete request format is as follows:
 - Where:
   - The **request_id** parameter is optional, but if provided, 
   must be a non-zero positive integer,  and must be embedded into both 
-  the request from the client and the response from the server. The default value is 0.
+  the request from the client and the response from the daemon. The default value is 0.
   - The **command** parameter is required, and must be a non-empty array of strings.
-  See  [Commands](#34-commands) for more details.
+  See  [Commands](#4-commands) for more details.
 
 - Example JSON data
 ```javascript
@@ -206,16 +210,16 @@ The complete response format is as follows:
 Where:
 - #### status
 **Required**. The **status** and the **response** properties must be mapped according to the following table:
-| Status  | Response                                   |
-| ------- | ------------------------------------------ |
+| Status  | Response                                        |
+| ------- | ----------------------------------------------- |
 | "ok"    | All other responses except [Error](#3322-error) |
 | "error" | [Error](#3322-error)                            |
 
  - #### operation_id
-**Required**. The **operation_id** property is a non-zero positive integer, that is uniquely generated by the server, and can be used by clients to track the request as well.
+**Required**. The **operation_id** property is a non-zero positive integer, that is uniquely generated by the daemon, and can be used by clients to track the request as well.
 
  - #### request_id
-**Required**. The **request_id** property is a positive integer which tracks the request sent by the client. The server must embed the same request ID in the response that the client provided while sending its request, or if it wasn't provided, must be set to 0.
+**Required**. The **request_id** property is a positive integer which tracks the request sent by the client. The daemon must embed the same request ID in the response that the client provided while sending its request, or if it wasn't provided, must be set to 0.
 
 - #### <response_property>
 **Required**. See the following types of **response** properties.
@@ -316,7 +320,7 @@ As mentioned in the [responses](#332-responses) section, the error format is:
 ---
 
 #### 3.3.2.3. Platform Information
-This type of response represents the platform information of the server.
+This type of response represents the platform information of the daemon.
 
 _Format:_
 ```javascript
@@ -366,7 +370,7 @@ _Format:_
 ---
 
 #### 3.3.2.4. Version
-This type of response represents the version of a server.
+This type of response represents the version of a daemon.
 
 _Format:_
 ```javascript
@@ -390,7 +394,7 @@ _Format:_
 : **Required**. See [request_id](#request_id).
 
 `version`
-: **Required**. The version of the server instance.
+: **Required**. The version of the daemon instance.
 
 - Example JSON data
 ```javascript
@@ -407,7 +411,7 @@ _Format:_
 ---
 
 #### 3.3.2.5. Features
-This type of response represents the features or capabilities of a server.
+This type of response represents the features or capabilities of a daemon.
 
 _Format:_
 ```javascript
@@ -431,7 +435,7 @@ _Format:_
 : **Required**. See [request_id](#request_id).
 
 `features`:
-**Required**. The **features** property is a combination of one or more features or capabilities of the server, as listed in this table:
+**Required**. The **features** property is a combination of one or more features or capabilities of the daemon, as listed in this table:
 | Feature           | Value  |
 | ----------------- | ------ |
 | Connection        | 1 << 1 |
@@ -441,7 +445,7 @@ _Format:_
 | Network Tethering | 1 << 5 |
 | Media Control     | 1 << 6 |
 
-For example, if the server wants to advertise that it can pair and connect to devices, and send and receive files, it would combine each feature like so:
+For example, if the daemon wants to advertise that it can pair and connect to devices, and send and receive files, it would combine each feature like so:
 ```go
 const (
   Connection uint = 1 << 1
@@ -468,7 +472,7 @@ var features = Connection | Pairing | SendFile | ReceiveFile // features = 30
 ---
 
 #### 3.3.2.6. Adapter
-This type of response respresents the full properties of an adapter (i.e. when the [`adapter properties`](#3522-adapter-properties) method is called).
+This type of response respresents the full properties of an adapter (i.e. when the [`adapter properties`](#4422-adapter-properties) method is called).
 
 _Format:_
 ```javascript
@@ -628,7 +632,7 @@ _Format_:
 ---
 
 #### 3.3.2.8. Device
-This type of response respresents the full properties of a device (i.e. when the [`device properties`](#3531-device-properties) method is called).
+This type of response respresents the full properties of a device (i.e. when the [`device properties`](#4431-device-properties) method is called).
 
 _Format:_
 ```javascript
@@ -807,7 +811,7 @@ _Format:_
 ---
 
 #### 3.3.2.10. File transfer
-This type of response alone is usually only sent by the [`device opp send-file`](#3539-device-opp-send-file) command to indicate that a file transfer is queued for sending.
+This type of response alone is usually only sent by the [`device opp send-file`](#4439-device-opp-send-file) command to indicate that a file transfer is queued for sending.
 
 _Format:_
 ```javascript
@@ -893,12 +897,12 @@ Where:
 
 - #### event_id
 **Required**. The **event_id** and the **event** property must be mapped according to this table:
-| Event ID | Event Property                                                                                                                                      |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1        | [Error Event](#3331-error-event)                                                                                                                         |
-| 2        | [Adapter Event](#3332-adapter-event)                                                                                                                     |
-| 3        | [Device Event](#3333-device-event)                                                                                                                       |
-| 4        | [File Transfer Event](#3334-file-transfer-event)                                                                                                         |
+| Event ID | Event Property                                                                                                                                                 |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | [Error Event](#3331-error-event)                                                                                                                               |
+| 2        | [Adapter Event](#3332-adapter-event)                                                                                                                           |
+| 3        | [Device Event](#3333-device-event)                                                                                                                             |
+| 4        | [File Transfer Event](#3334-file-transfer-event)                                                                                                               |
 | 6        | Either of [Pairing Authentication Event](#3335-pairing-authentication-event) or [File Transfer Authentication Event](#3336-file-transfer-authentication-event) |
 
 
@@ -1093,7 +1097,7 @@ _Format:_
 ---
 
 #### 3.3.3.4. File Transfer Event
-This type of event is sent during a file transfer, either when initiated by the client, or when the server receives a file from the remote host.
+This type of event is sent during a file transfer, either when initiated by the client, or when the daemon receives a file from the remote host.
 
 _Format:_
 ```javascript
@@ -1186,7 +1190,7 @@ _Format:_
 : **Required**. See [event_action](#event_action).
 
 `auth_id`
-: **Required.**. The authentication ID that is generated by the server and provided to clients to respond to this authentication event.
+: **Required.**. The authentication ID that is generated by the daemon and provided to clients to respond to this authentication event.
 
 `timeout_ms`
 : **Required**. The timeout of the authentication in milliseconds.
@@ -1290,7 +1294,7 @@ _Format:_
 : **Required**. See [event_action](#event_action).
 
 `auth_id`
-: **Required.**. The authentication ID that is generated by the server and provided to clients to respond to this authentication event.
+: **Required.**. The authentication ID that is generated by the daemon and provided to clients to respond to this authentication event.
 
 `timeout_ms`
 : **Required**. The timeout of the authentication in milliseconds.
@@ -1324,25 +1328,25 @@ _Format:_
 }
 ```
 
-# 3.4. Commands
+# 4. Commands
 
-## 3.4.0.1. Method Invocation
+## 4.1. Method Invocation
 
-A client can send (multiple) requests in any order, and the server may not send the responses in the same order.
+A client can send (multiple) requests in any order, and the daemon may not send the responses in the same order.
 Therefore, clients are advised to embed a unique request ID within the request to track it, see the [requests](#331-requests) section.
 
 The default timeout to receive a response for an request within a client is 30 seconds,
-so a response sent by a server should be within that timeframe, or else the client will assume that the server experienced an internal error, and stop tracking the request.
+so a response sent by a daemon should be within that timeframe, or else the client will assume that the daemon experienced an internal error, and stop tracking the request.
 The response sent after this timeframe is not guaranteed to be parsed by the client.
 
-Within the server, all long running methods (for example, device discovery, file transfer etc.) must:
+Within the daemon, all long running methods (for example, device discovery, file transfer etc.) must:
 - Use [events](#333-events) to send updated information to the client.
 - Run the operation in the background, and return a response that reflects the state of the operation immediately.
 - If any errors occurs during the operation well after returning the response to the client, an [Error Event](#3331-error-event) must be sent reflecting the state of the operation.
 
-The server may impose limits on the amount of concurrency and may stop reading from the client when server buffers are full. It is the client's responsibility to avoid concurrent-writing-induced deadlocks.
+The daemon may impose limits on the amount of concurrency and may stop reading from the client when daemon buffers are full. It is the client's responsibility to avoid concurrent-writing-induced deadlocks.
 
-## 3.4.0.2. Command Format
+## 4.2. Command Format
 As mentioned in the section on [requests](#331-requests), the format is:
 ```javascript
 {
@@ -1372,16 +1376,22 @@ Or if a client wants to respond to an authentication event, it would send a requ
 }
 ```
 
-## 3.5. Command List
-The following set of commands can be used by clients to invoke various methods on the server.
+## 4.3. Authentication
+For a client to receive any pairing or incoming transfer confirmation requests, an agent has to be registered
+with the daemon.
 
-### 3.5.1. Rpc Session Command Section
+See the [rpc agent register](#4415-rpc-agent-register) and [rpc agent unregister](#4416-rpc-agent-unregister) commands for more information.
+
+## 4.4. Command List
+The following set of commands can be used by clients to invoke various methods on the daemon.
+
+### 4.4.1. Rpc Session Command Section
 
 Perform functions related to an ongoing RPC operation within a session.
 
-#### 3.5.1.1. rpc platform-info
+#### 4.4.1.1. rpc platform-info
 
-Get the platform-specific information of the Bluetooth stack and the Operating System the server is running on.
+Get the platform-specific information of the Bluetooth stack and the Operating System the daemon is running on.
 
 Options: None
 
@@ -1391,9 +1401,9 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.1.2. rpc feature-flags
+#### 4.4.1.2. rpc feature-flags
 
-Show the features of the RPC server.
+Show the features of the RPC daemon.
 
 Options: None
 
@@ -1403,9 +1413,9 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.1.3. rpc version
+#### 4.4.1.3. rpc version
 
-Show the current version information of the RPC server.
+Show the current version information of the RPC daemon.
 
 Options: None
 
@@ -1415,7 +1425,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.1.4. rpc auth
+#### 4.4.1.4. rpc auth
 
 Set the response for a pending authentication request attached to an authentication ID.
 
@@ -1430,13 +1440,46 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
+#### 4.4.1.5. rpc agent register
+Register an authentication agent for pairing or receiving file transfers.
+
+| Option       | Required | Default Value | Description                                          |
+| ------------ | -------- | ------------- | ---------------------------------------------------- |
+| --agent-type | True     | N/A           | The type of agent to register ("pairing" or "obex"). |
+
+_Response values:_
+
+- If the operation has run _Successfully_, the JSON response is: [OK](#3321-ok).
+
+- If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
+
+_Notes:_
+- The implementation of this particular feature is still yet to be complete and can change,
+  however, it works for simple use-cases.
+- Use the "--agent-type" argument value:
+    - **"pairing"**: To register a pairing agent. The client that is registered will receive all pairing requests.
+    - **"obex"**: To register an obex agent. The client that is registered will receive all incoming file transfer confirmation requests.
+
+#### 4.4.1.6. rpc agent unregister
+Unregister an authentication agent.
+
+| Option       | Required | Default Value | Description                                          |
+| ------------ | -------- | ------------- | ---------------------------------------------------- |
+| --agent-type | True     | N/A           | The type of agent to register ("pairing" or "obex"). |
+
+_Response values:_
+
+- If the operation has run _Successfully_, the JSON response is: [OK](#3321-ok).
+
+- If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
+
 ---
 
-### 3.5.2. Adapter Commands Section
+### 4.4.2. Adapter Commands Section
 
 Perform operations on the Bluetooth adapter.
 
-#### 3.5.2.1. adapter list
+#### 4.4.2.1. adapter list
 
 List all available Bluetooth adapters.
 
@@ -1448,7 +1491,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.2.2. adapter properties
+#### 4.4.2.2. adapter properties
 
 Get information about the Bluetooth adapter.
 
@@ -1462,7 +1505,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.2.3. adapter discovery start
+#### 4.4.2.3. adapter discovery start
 
 Start a device discovery.
 
@@ -1482,7 +1525,7 @@ A device discovery must run in the background.
 
 The device discovery flow is as follows:
 - The client calls this method, and waits for a status.
-- The server starts the device discovery, and immediately returns an [OK](#3321-ok) response if the discovery has started,
+- The daemon starts the device discovery, and immediately returns an [OK](#3321-ok) response if the discovery has started,
 or an [Error](#3322-error), if the discovery stopped with errors
 - Once the discovery is in progress:
   - An [Adapter Event](#3332-adapter-event) must be sent with the **event_action** as **updated** and the **Discovering** property set to true.
@@ -1494,7 +1537,7 @@ or an [Error](#3322-error), if the discovery stopped with errors
 
 The **updated** event_action is not valid in this context.
 
-#### 3.5.2.4. adapter discovery stop
+#### 4.4.2.4. adapter discovery stop
 
 Stop a device discovery (RPC only).
 
@@ -1508,7 +1551,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.2.5. adapter get-paired-devices
+#### 4.4.2.5. adapter get-paired-devices
 
 Get the list of paired devices.
 
@@ -1522,7 +1565,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.2.6. adapter set-powered-state
+#### 4.4.2.6. adapter set-powered-state
 
 Sets the power state of the adapter.
 
@@ -1537,7 +1580,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.2.7. adapter set-pairable-state
+#### 4.4.2.7. adapter set-pairable-state
 
 Sets the pairable state of the adapter.
 
@@ -1552,7 +1595,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.2.8. adapter set-discoverable-state
+#### 4.4.2.8. adapter set-discoverable-state
 
 Sets the discoverable state of the adapter.
 
@@ -1569,11 +1612,11 @@ _Response values:_
 
 ---
 
-### 3.5.3. Device Commands Section
+### 4.4.3. Device Commands Section
 
 Perform operations on a Bluetooth device.
 
-#### 3.5.3.1. device properties
+#### 4.4.3.1. device properties
 
 Get information about a Bluetooth device.
 
@@ -1587,7 +1630,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.3.2. device pair
+#### 4.4.3.2. device pair
 
 Pair with a Bluetooth device.
 
@@ -1610,12 +1653,12 @@ when appropriate, a [Pairing Authentication Event](#3335-pairing-authentication-
 The authentication flow is as follows:
 
 - The client first calls this method, and starts the pairing process.
-- The pairing process is initiated, and the remote device generates a pin/passkey for authentication and asks the host (in this case the server) to verify.
-- The server sends an appropriate [Pairing Authentication Event](#3335-pairing-authentication-event) to the client, with the **"auth_id"** and **"auth_reply_method"** properties set.
-- The client receives the [Pairing Authentication Event](#3335-pairing-authentication-event), and calls the [rpc auth](#3514-rpc-auth) method with the `--response` and `--authentication-id` parameters set according to the provided **"auth_id"** and **"auth_reply_method"** properties from the event.
+- The pairing process is initiated, and the remote device generates a pin/passkey for authentication and asks the host (in this case the daemon) to verify.
+- The daemon sends an appropriate [Pairing Authentication Event](#3335-pairing-authentication-event) to the client, with the **"auth_id"** and **"auth_reply_method"** properties set.
+- The client receives the [Pairing Authentication Event](#3335-pairing-authentication-event), and calls the [rpc auth](#4414-rpc-auth) method with the `--response` and `--authentication-id` parameters set according to the provided **"auth_id"** and **"auth_reply_method"** properties from the event.
 - Based on the client's response, the pairing is either completed if the client approves the request, or cancelled if the client does not approve the request.
 
-For example, say the server sends a [Pairing Authentication Event](#3335-pairing-authentication-event) like so:
+For example, say the daemon sends a [Pairing Authentication Event](#3335-pairing-authentication-event) like so:
 ```
 "pairing_auth_event": {
 "auth_id": 2500,
@@ -1641,7 +1684,7 @@ Or, if the client does not want to pair with the remote device the request sent 
 }
 ```
 
-#### 3.5.3.3. device pair cancel
+#### 4.4.3.3. device pair cancel
 
 Cancel an ongoing pairing session with a Bluetooth device.
 
@@ -1655,7 +1698,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.3.4. device connect
+#### 4.4.3.4. device connect
 
 Connect to a Bluetooth device automatically.
 
@@ -1669,7 +1712,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.3.5. device connect profile
+#### 4.4.3.5. device connect profile
 
 Connect to a device using a specified profile
 
@@ -1684,7 +1727,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.3.6. device disconnect
+#### 4.4.3.6. device disconnect
 
 Disconnect from a Bluetooth device.
 
@@ -1698,7 +1741,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.3.7. device remove
+#### 4.4.3.7. device remove
 
 Remove a Bluetooth device.
 
@@ -1712,7 +1755,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.3.8. device opp start-session
+#### 4.4.3.8. device opp start-session
 
 Start an Object Push client session with a device.
 
@@ -1745,9 +1788,9 @@ Ensure that the **"status"** property for each [File Transfer Event](#3334-file-
 
 The `queued` **"status"** value is not valid in this context.
 
-#### 3.5.3.9. device opp send-file
+#### 4.4.3.9. device opp send-file
 
-Send a file to a device with an open session. Use "[device opp start-session](#3538-device-opp-start-session)" to start a session with a device first before calling this method.
+Send a file to a device with an open session. Use "[device opp start-session](#4438-device-opp-start-session)" to start a session with a device first before calling this method.
 
 | Option | Required | Default Value | Description                      |
 | ------ | -------- | ------------- | -------------------------------- |
@@ -1767,10 +1810,10 @@ so it should immediately return:
 - A [File Transfer](#33210-file-transfer) response with the **"status"** property set only to `"queued"` if the provided file was queued for transfer, or
 - An [Error](#3322-error) if the provided file was not queued for transfer.
 
-#### 3.5.3.10. device opp cancel-transfer
+#### 4.4.3.10. device opp cancel-transfer
 
 Cancel an existing Object Push file transfer session with a device. This can be any
-currently running transfer, for example if the Object Push server is receiving a file,
+currently running transfer, for example if the Object Push daemon is receiving a file,
 or a file is currently being sent to the device after setting up an Object Push session.
 
 | Option    | Required | Default Value | Description                          |
@@ -1783,7 +1826,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.3.11. device opp suspend-transfer
+#### 4.4.3.11. device opp suspend-transfer
 
 Suspend an existing Object Push file transfer session with a device.
 
@@ -1795,7 +1838,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.3.12. device opp resume-transfer
+#### 4.4.3.12. device opp resume-transfer
 
 Resume an existing Object Push file transfer session with a device.
 
@@ -1807,7 +1850,7 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.3.13. device opp stop-session
+#### 4.4.3.13. device opp stop-session
 
 Stop an existing Object Push client session with a device.
 
@@ -1819,9 +1862,9 @@ _Response values:_
 
 - If the operation returns an _Error_, the JSON response is: [Error](#3322-error).
 
-#### 3.5.3.14. device opp start-server
+#### 4.4.3.14. device opp start-daemon
 
-Start an Object Push server. The Object Push server will listen for any incoming files
+Start an Object Push daemon. The Object Push daemon will listen for any incoming files
 and send file-transfer events accordingly.
 
 | Option      | Required | Default Value | Description                                                 |
@@ -1836,7 +1879,7 @@ _Response values:_
 
 _Notes_:
 
-An Object push server must be started in the background, and once a server is started, this method call must return an [OK](#3321-ok) response immediately, or an [Error](#3322-error) if the server could not be started. 
+An Object push daemon must be started in the background, and once a daemon is started, this method call must return an [OK](#3321-ok) response immediately, or an [Error](#3322-error) if the daemon could not be started. 
 
 For each incoming file transfer, the default directory to receive files should be within
 the following well defined paths:
@@ -1857,9 +1900,9 @@ Ensure that the **"status"** property for each [File Transfer Event](#3334-file-
 
 The `queued` and `suspended` **"status"** values are not valid in this context.
 
-#### 3.5.3.15. device opp stop-server
+#### 4.4.3.15. device opp stop-daemon
 
-Stop a started Object Push server.
+Stop a started Object Push daemon.
 
 | Option      | Required | Default Value | Description                                                 |
 | ----------- | -------- | ------------- | ----------------------------------------------------------- |
