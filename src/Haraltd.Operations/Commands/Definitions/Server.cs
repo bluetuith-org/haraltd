@@ -2,6 +2,8 @@ using ConsoleAppFramework;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.OutputStream;
+using Haraltd.Stack;
+using Haraltd.Stack.Base;
 
 namespace Haraltd.Operations.Commands.Definitions;
 
@@ -20,7 +22,10 @@ public class Server
         if (socketPath == "")
             socketPath = IServer.SocketPath;
 
-        var error = ServerHost.Instance.StartServer(socketPath, tray ? "" : "server start -t");
+        var error = OperationHost.Instance.Server.StartServer(
+            socketPath,
+            tray ? "" : "server start -t"
+        );
         if (error != Errors.ErrorNone)
             Output.Error(error, OperationToken.None);
 
@@ -33,7 +38,7 @@ public class Server
         if (Output.IsOnSocket)
             return Errors.ErrorUnsupported.Code.Value;
 
-        var error = ServerHost.Instance.StopServer(
+        var error = OperationHost.Instance.Server.StopServer(
             tray ? "" : string.Join(" ", context.Arguments) + " -t"
         );
         if (error != Errors.ErrorNone)

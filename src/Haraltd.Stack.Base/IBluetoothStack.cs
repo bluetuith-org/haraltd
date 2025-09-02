@@ -2,7 +2,7 @@ using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.Models;
 using Haraltd.DataTypes.OperationToken;
 
-namespace Haraltd.Operations;
+namespace Haraltd.Stack.Base;
 
 public interface IBluetoothStack
 {
@@ -40,56 +40,6 @@ public interface IBluetoothStack
 
     // Advanced Audio Distribution (A2DP) based operations
     public Task<ErrorData> StartAudioSessionAsync(OperationToken token, string address);
-
-    // Message Access (MAP) based operations
-    public Task<ErrorData> StartNotificationEventServerAsync(OperationToken token, string address);
-
-    public Task<(MessageListingModel, ErrorData)> GetMessagesAsync(
-        OperationToken token,
-        string address,
-        string folderPath = "telecom",
-        ushort fromIndex = 0,
-        ushort maxMessageCount = 0
-    );
-
-    public Task<(BMessagesModel, ErrorData)> ShowMessageAsync(
-        OperationToken token,
-        string address,
-        string handle
-    );
-
-    public Task<(GenericResult<int>, ErrorData)> GetTotalMessageCountAsync(
-        OperationToken token,
-        string address,
-        string folderPath
-    );
-
-    public Task<(GenericResult<List<string>>, ErrorData)> GetMessageFoldersAsync(
-        OperationToken token,
-        string address,
-        string folderPath = ""
-    );
-
-    // Phonebook Access profile (PBAP) based operations
-    public Task<(VcardModel, ErrorData)> GetAllContactsAsync(OperationToken token, string address);
-
-    public Task<(VcardModel, ErrorData)> GetCombinedCallHistoryAsync(
-        OperationToken token,
-        string address
-    );
-
-    public Task<(VcardModel, ErrorData)> GetIncomingCallsHistoryAsync(
-        OperationToken token,
-        string address
-    );
-
-    public Task<(VcardModel, ErrorData)> GetOutgoingCallsHistoryAsync(
-        OperationToken token,
-        string address
-    );
-
-    public Task<(VcardModel, ErrorData)> GetMissedCallsAsync(OperationToken token, string address);
-    public Task<(VcardModel, ErrorData)> GetSpeedDialAsync(OperationToken token, string address);
 
     // Object Push profile (OPP) based operations
     public Task<ErrorData> StartFileTransferSessionAsync(OperationToken token, string address);

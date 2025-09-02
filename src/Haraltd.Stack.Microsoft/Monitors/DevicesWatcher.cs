@@ -59,7 +59,7 @@ internal partial class DevicesWatcher : IWatcher
         {
             List<DeviceChanges> changes = [];
 
-            using (_devices.AcquireReadLock())
+            using (LockAcquisition.AcquireReadLock(_devices))
             {
                 foreach (var device in _devices.Values)
                     changes.Add(device with { });
@@ -169,7 +169,7 @@ internal partial class DevicesWatcher : IWatcher
 
     internal void ClearDevices()
     {
-        using (_devices.AcquireWriteLock())
+        using (LockAcquisition.AcquireWriteLock(_devices))
         {
             _devices.Clear();
         }
@@ -179,7 +179,7 @@ internal partial class DevicesWatcher : IWatcher
     {
         var changes = new DeviceChanges(deviceInformation);
 
-        using (_devices.AcquireWriteLock())
+        using (LockAcquisition.AcquireWriteLock(_devices))
         {
             _devices[deviceInformation.Id] = changes with { };
         }
@@ -192,7 +192,7 @@ internal partial class DevicesWatcher : IWatcher
         DeviceChanges oldChanges = null,
             newChanges = null;
 
-        using (_devices.AcquireWriteLock())
+        using (LockAcquisition.AcquireWriteLock(_devices))
         {
             if (_devices.TryGetValue(deviceInformationUpdate.Id, out var device))
             {
@@ -211,7 +211,7 @@ internal partial class DevicesWatcher : IWatcher
     {
         DeviceChanges currentInfo;
 
-        using (_devices.AcquireWriteLock())
+        using (LockAcquisition.AcquireWriteLock(_devices))
         {
             _devices.Remove(deviceInformationUpdate.Id, out currentInfo);
         }

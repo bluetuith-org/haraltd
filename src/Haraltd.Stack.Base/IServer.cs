@@ -1,6 +1,6 @@
 ﻿using Haraltd.DataTypes.Generic;
 
-namespace Haraltd.Operations;
+namespace Haraltd.Stack.Base;
 
 public interface IServer
 {

@@ -20,6 +20,10 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Update="CSharpier.MsBuild" Version="1.1.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Samples\**" />
@@ -29,6 +33,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Haraltd.Operations\Haraltd.Operations.csproj" />
     <ProjectReference Include="..\Haraltd.DataTypes\Haraltd.DataTypes.csproj" />
+    <ProjectReference Include="..\Haraltd.Stack.Base\Haraltd.Stack.Base.csproj" />
     <ProjectReference
       Include="..\Haraltd.Stack.Microsoft\Haraltd.Stack.Microsoft.csproj"
       Condition=" '$(OS)' == 'Windows_NT' "

@@ -3,6 +3,7 @@ using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.Models;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations;
+using Haraltd.Stack.Base;
 using Haraltd.Stack.Microsoft.Adapters;
 using Haraltd.Stack.Microsoft.Devices;
 using Haraltd.Stack.Microsoft.Devices.Profiles;
@@ -10,7 +11,7 @@ using static Haraltd.DataTypes.Models.Features;
 
 namespace Haraltd.Stack.Microsoft;
 
-public sealed class MsftStack : IBluetoothStack
+public class MsftStack : IBluetoothStack
 {
     public ErrorData StartMonitors(OperationToken token)
     {
@@ -131,90 +132,6 @@ public sealed class MsftStack : IBluetoothStack
     public Task<ErrorData> StartAudioSessionAsync(OperationToken token, string address)
     {
         return A2dp.StartAudioSessionAsync(token, address);
-    }
-
-    // Message Access (MAP) based operations
-    public Task<ErrorData> StartNotificationEventServerAsync(OperationToken token, string address)
-    {
-        return Map.StartNotificationEventServerAsync(token, address);
-    }
-
-    public Task<(MessageListingModel, ErrorData)> GetMessagesAsync(
-        OperationToken token,
-        string address,
-        string folderPath = "telecom",
-        ushort fromIndex = 0,
-        ushort maxMessageCount = 0
-    )
-    {
-        return Map.GetMessagesAsync(token, address, folderPath, fromIndex, maxMessageCount);
-    }
-
-    public Task<(BMessagesModel, ErrorData)> ShowMessageAsync(
-        OperationToken token,
-        string address,
-        string handle
-    )
-    {
-        return Map.ShowMessageAsync(token, address, handle);
-    }
-
-    public Task<(GenericResult<int>, ErrorData)> GetTotalMessageCountAsync(
-        OperationToken token,
-        string address,
-        string folderPath
-    )
-    {
-        return Map.GetTotalMessageCountAsync(token, address, folderPath);
-    }
-
-    public Task<(GenericResult<List<string>>, ErrorData)> GetMessageFoldersAsync(
-        OperationToken token,
-        string address,
-        string folderPath = ""
-    )
-    {
-        return Map.GetMessageFoldersAsync(token, address, folderPath);
-    }
-
-    // Phonebook Access PSE (PBAP) based operations
-    public Task<(VcardModel, ErrorData)> GetAllContactsAsync(OperationToken token, string address)
-    {
-        return Pbap.GetAllContactsAsync(token, address);
-    }
-
-    public Task<(VcardModel, ErrorData)> GetCombinedCallHistoryAsync(
-        OperationToken token,
-        string address
-    )
-    {
-        return Pbap.GetCombinedCallHistoryAsync(token, address);
-    }
-
-    public Task<(VcardModel, ErrorData)> GetIncomingCallsHistoryAsync(
-        OperationToken token,
-        string address
-    )
-    {
-        return Pbap.GetIncomingCallsHistoryAsync(token, address);
-    }
-
-    public Task<(VcardModel, ErrorData)> GetOutgoingCallsHistoryAsync(
-        OperationToken token,
-        string address
-    )
-    {
-        return Pbap.GetOutgoingCallsHistoryAsync(token, address);
-    }
-
-    public Task<(VcardModel, ErrorData)> GetMissedCallsAsync(OperationToken token, string address)
-    {
-        return Pbap.GetMissedCallsAsync(token, address);
-    }
-
-    public Task<(VcardModel, ErrorData)> GetSpeedDialAsync(OperationToken token, string address)
-    {
-        return Pbap.GetSpeedDialAsync(token, address);
     }
 
     // Object Push (OPP) based operations

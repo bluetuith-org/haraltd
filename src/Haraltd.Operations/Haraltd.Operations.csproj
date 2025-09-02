@@ -8,10 +8,15 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="ConsoleAppFramework.Abstractions" Version="5.5.0" />
-    <PackageReference Include="DotNext" Version="5.22.0" />
+    <PackageReference Include="DotNext" Version="5.24.0" />
     <PackageReference Include="NetCoreServer" Version="8.0.7" />
+    <PackageReference Update="CSharpier.MsBuild" Version="1.1.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Haraltd.DataTypes\Haraltd.DataTypes.csproj" />
+    <ProjectReference Include="..\Haraltd.Stack.Base\Haraltd.Stack.Base.csproj" />
   </ItemGroup>
 </Project>

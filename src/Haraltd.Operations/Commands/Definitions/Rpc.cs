@@ -3,6 +3,7 @@ using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.Managers;
 using Haraltd.Operations.OutputStream;
+using Haraltd.Stack;
 
 namespace Haraltd.Operations.Commands.Definitions;
 
@@ -16,7 +17,7 @@ public class Rpc
     public int PlatformInfo(ConsoleAppContext context)
     {
         return Output.Result(
-            BluetoothStack.CurrentStack.GetPlatformInfo(),
+            OperationHost.Instance.Stack.GetPlatformInfo(),
             Errors.ErrorNone,
             (OperationToken)context.State
         );
@@ -26,7 +27,7 @@ public class Rpc
     /// <summary>Show the features of the RPC server.</summary>
     public int FeatureFlags(ConsoleAppContext context)
     {
-        var features = BluetoothStack.CurrentStack.GetFeatureFlags();
+        var features = OperationHost.Instance.Stack.GetFeatureFlags();
 
         return Output.Result(features, Errors.ErrorNone, (OperationToken)context.State);
     }

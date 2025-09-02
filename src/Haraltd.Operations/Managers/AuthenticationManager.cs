@@ -108,7 +108,7 @@ public static class AuthenticationManager
         UnregisterAuthAgent(AuthAgentType.Pairing, clientId);
         UnregisterAuthAgent(AuthAgentType.Obex, clientId);
 
-        using var _ = Events.AcquireWriteLock();
+        using var _ = LockAcquisition.AcquireWriteLock(Events);
 
         if (Events.TryGetValue(clientId, out var authList) && authList != null)
             foreach (var authEvent in authList.Values)
@@ -121,7 +121,7 @@ public static class AuthenticationManager
         AuthAgentType authAgentType = AuthAgentType.None
     )
     {
-        using var _ = Events.AcquireWriteLock();
+        using var _ = LockAcquisition.AcquireWriteLock(Events);
 
         var clientId = Guid.Empty;
 
@@ -159,7 +159,7 @@ public static class AuthenticationManager
 
     internal static bool SetEventResponse(OperationToken token, long authId, string response)
     {
-        using var _ = Events.AcquireWriteLock();
+        using var _ = LockAcquisition.AcquireWriteLock(Events);
 
         var found = true;
 
