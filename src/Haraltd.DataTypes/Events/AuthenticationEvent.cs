@@ -1,7 +1,8 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.Serializer;
+using InTheHand.Net;
 using static Haraltd.DataTypes.Generic.IEvent;
 
 namespace Haraltd.DataTypes.Events;
@@ -144,7 +145,7 @@ public record PairingAuthenticationEvent : AuthenticationEvent
     protected readonly string Address;
 
     public PairingAuthenticationEvent(
-        string address,
+        BluetoothAddress address,
         string pin,
         int timeout,
         AuthenticationReplyMethod pairingKind,
@@ -152,7 +153,7 @@ public record PairingAuthenticationEvent : AuthenticationEvent
     )
         : base(pin, timeout, pairingKind, token)
     {
-        Address = address;
+        Address = address.ToString("C");
     }
 
     public class PairingParameters : AuthenticationParameters

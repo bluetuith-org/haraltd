@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <CsWinRTWindowsMetadata>10.0.19041.0</CsWinRTWindowsMetadata>
     <CsWinRTAotWarningLevel>2</CsWinRTAotWarningLevel>
@@ -15,10 +15,10 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Libraries\MyPhone.OBEX\MyPhone.OBEX.csproj" />
     <ProjectReference Include="..\Haraltd.DataTypes\Haraltd.DataTypes.csproj" />
     <ProjectReference Include="..\Haraltd.Operations\Haraltd.Operations.csproj" />
     <ProjectReference Include="..\Haraltd.Stack.Base\Haraltd.Stack.Base.csproj" />
+    <ProjectReference Include="..\Haraltd.Stack.Obex\Haraltd.Stack.Obex.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="H.NotifyIcon" Version="2.3.0" />

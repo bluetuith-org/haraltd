@@ -7,15 +7,15 @@ public class PlatformSpecificHost : IOperationHost
 {
     public IBluetoothStack Stack { get; } =
 #if WINDOWS10_0_19041_0_OR_GREATER
-        new Haraltd.Stack.Microsoft.MsftStack();
+        new Haraltd.Stack.Microsoft.WindowsStack();
 #else
-null
+        null;
 #endif
-    
-    public IServer Server { get; } = 
+
+    public IServer Server { get; } =
 #if WINDOWS10_0_19041_0_OR_GREATER
-    new Haraltd.Stack.Microsoft.Server.MsftServer();
+    new Haraltd.Stack.Microsoft.Server.WindowsServer();
 #else
-null
+        null;
 #endif
 }

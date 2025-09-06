@@ -1,10 +1,11 @@
-﻿using DotNext.Collections.Generic;
+using DotNext.Collections.Generic;
+using DotNext.Threading.Tasks;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.Models;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Stack.Microsoft.Adapters;
 using Haraltd.Stack.Microsoft.Devices.ConnectionMethods;
-using Haraltd.Stack.Microsoft.Devices.Profiles;
+using Haraltd.Stack.Microsoft.Profiles;
 using InTheHand.Net;
 using InTheHand.Net.Bluetooth;
 using Windows.Devices.Bluetooth;
@@ -24,7 +25,10 @@ internal static class Connection
         BluetoothService.Headset,
     ];
 
-    internal static ErrorData Connect(OperationToken token, string address)
+    internal static async ValueTask<ErrorData> ConnectAsync(
+        OperationToken token,
+        BluetoothAddress address
+    )
     {
         if (_operationInProgress)
             return Errors.ErrorOperationInProgress;
@@ -33,7 +37,7 @@ internal static class Connection
 
         try
         {
-            AdapterMethods.ThrowIfRadioNotOperable();
+            WindowsAdapter.ThrowIfRadioNotOperable();
 
             if (
                 !IsAdapterSupported(token, out var error, AppSupportedProfiles)
@@ -48,7 +52,7 @@ internal static class Connection
             )
                 return error;
 
-            return TryConnectionMethods(token, device, supportedProfiles);
+            return await TryConnectionMethods(token, address, device, supportedProfiles);
         }
         catch (Exception e)
         {
@@ -60,7 +64,11 @@ internal static class Connection
         }
     }
 
-    internal static ErrorData ConnectProfile(OperationToken token, string address, Guid profileGuid)
+    internal static async ValueTask<ErrorData> ConnectProfileAsync(
+        OperationToken token,
+        BluetoothAddress address,
+        Guid profileGuid
+    )
     {
         if (_operationInProgress)
             return Errors.ErrorOperationInProgress;
@@ -69,7 +77,7 @@ internal static class Connection
 
         try
         {
-            AdapterMethods.ThrowIfRadioNotOperable();
+            WindowsAdapter.ThrowIfRadioNotOperable();
 
             if (
                 !IsAdapterSupported(token, out var error, profileGuid)
@@ -77,7 +85,7 @@ internal static class Connection
             )
                 return error;
 
-            return TryConnectionMethods(token, device, profileGuid);
+            return await TryConnectionMethods(token, address, device, profileGuid);
         }
         catch (Exception e)
         {
@@ -89,42 +97,15 @@ internal static class Connection
         }
     }
 
-    internal static ErrorData Disconnect(OperationToken token, string address)
-    {
-        if (_operationInProgress)
-            return Errors.ErrorOperationInProgress;
-
-        _operationInProgress = true;
-
-        try
-        {
-            return AdapterMethods.DisconnectDevice(address);
-        }
-        finally
-        {
-            _operationInProgress = false;
-        }
-    }
-
-    internal static ErrorData DisconnectProfile(
+    private static async ValueTask<ErrorData> TryConnectionMethods(
         OperationToken token,
-        string address,
-        Guid profileGuid
-    )
-    {
-        return Disconnect(token, address);
-    }
-
-    private static ErrorData TryConnectionMethods(
-        OperationToken token,
+        BluetoothAddress address,
         DeviceModel device,
         params Guid[] supportedProfiles
     )
     {
-        using var windowsDevice = BluetoothDevice
-            .FromBluetoothAddressAsync(BluetoothAddress.Parse(device.Address))
-            .GetAwaiter()
-            .GetResult();
+        using var windowsDevice = await BluetoothDevice.FromBluetoothAddressAsync(address);
+
         if (windowsDevice == null)
             return Errors.ErrorDeviceNotFound;
 
@@ -139,7 +120,7 @@ internal static class Connection
         {
             if (!windowsDevice.DeviceInformation.Pairing.IsPaired)
             {
-                error = new Pairing().PairAsync(token, device.Address).Result;
+                error = new Pairing().PairAsync(token, address).Result;
                 if (!CheckError(error))
                     goto FinishConnection;
             }
@@ -149,7 +130,7 @@ internal static class Connection
 
             if (
                 supportedProfiles.Contains(AppSupportedProfiles[0])
-                && A2dp.StartAudioSessionAsync(token, device.Address).Result is var a2dpError
+                && A2dp.StartAudioSessionAsync(token, address).Result is var a2dpError
             )
                 if (CheckError(a2dpError))
                     goto FinishConnection;
@@ -198,7 +179,7 @@ internal static class Connection
         out Guid[] supportedProfiles,
         out ErrorData errors,
         in OperationToken token,
-        in string address,
+        in BluetoothAddress address,
         params Guid[] profiles
     )
     {
@@ -212,7 +193,7 @@ internal static class Connection
             goto FinishChecks;
         }
 
-        (device, errors) = DeviceModelExt.ConvertToDeviceModel(address);
+        (device, errors) = WindowsDevice.ConvertToDeviceModel(address);
         if (errors != Errors.ErrorNone)
             goto FinishChecks;
 
@@ -251,7 +232,7 @@ internal static class Connection
         params Guid[] profiles
     )
     {
-        AdapterMethods.ThrowIfRadioNotOperable();
+        WindowsAdapter.ThrowIfRadioNotOperable();
 
         errors = Errors.ErrorNone;
         if (token.CancelTokenSource.IsCancellationRequested)
@@ -260,7 +241,7 @@ internal static class Connection
             goto FinishChecks;
         }
 
-        var (adapter, convertError) = AdapterModelExt.ConvertToAdapterModel();
+        var (adapter, convertError) = WindowsAdapter.ConvertToAdapterModel(token);
         if (convertError != Errors.ErrorNone)
         {
             errors = convertError;

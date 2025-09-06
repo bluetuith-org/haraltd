@@ -1,4 +1,4 @@
-﻿namespace Haraltd.Stack.Microsoft.Devices.ConnectionMethods;
+namespace Haraltd.Stack.Microsoft.Devices.ConnectionMethods;
 
 internal static class ConnectionSettings
 {

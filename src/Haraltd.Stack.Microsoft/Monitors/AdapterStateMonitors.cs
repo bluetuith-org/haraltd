@@ -1,4 +1,4 @@
-﻿using System.Timers;
+using System.Timers;
 using Haraltd.DataTypes.Events;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;

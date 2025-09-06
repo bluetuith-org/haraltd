@@ -1,4 +1,5 @@
-﻿using Nefarius.Utilities.DeviceManagement.PnP;
+using InTheHand.Net;
+using Nefarius.Utilities.DeviceManagement.PnP;
 
 namespace Haraltd.Stack.Microsoft.Windows;
 
@@ -76,12 +77,15 @@ internal static class WindowsPnPInformation
                 typeof(byte)
             );
 
-        internal static string ServicesRegistryPath(string adapterAddress, string deviceAddress)
+        internal static string ServicesRegistryPath(
+            BluetoothAddress adapterAddress,
+            BluetoothAddress deviceAddress
+        )
         {
-            adapterAddress = adapterAddress.Replace(":", "");
-            deviceAddress = deviceAddress.Replace(":", "");
+            var adapterAddr = adapterAddress.ToString("C").Replace(":", "");
+            var deviceAddr = deviceAddress.ToString("C").Replace(":", "");
 
-            return $@"SYSTEM\CurrentControlSet\Services\BTHPORT\Parameters\Devices\{deviceAddress}\ServicesFor{adapterAddress}";
+            return $@"SYSTEM\CurrentControlSet\Services\BTHPORT\Parameters\Devices\{deviceAddr}\ServicesFor{adapterAddr}";
         }
     }
 }

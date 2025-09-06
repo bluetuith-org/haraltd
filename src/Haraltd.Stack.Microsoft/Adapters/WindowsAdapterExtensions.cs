@@ -1,4 +1,4 @@
-﻿using Haraltd.DataTypes.Generic;
+using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.Models;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Stack.Microsoft.Monitors;
@@ -47,13 +47,12 @@ internal static class WindowsAdapterExtensions
         {
             if (Devcon.FindByInterfaceGuid(HostRadio.DeviceInterface, out var device))
             {
-                adapter.Address = (
-                    (BluetoothAddress)
-                        device.GetProperty<ulong>(WindowsPnPInformation.Adapter.Address)
-                ).ToString("C");
+                var addr = (BluetoothAddress)
+                    device.GetProperty<ulong>(WindowsPnPInformation.Adapter.Address);
+                adapter.Address = (addr).ToString("C");
 
                 adapter.OptionPowered = adapter.OptionPairable = HostRadio.IsOperable;
-                adapter.OptionDiscoverable = AdapterMethods.GetDiscoverableState();
+                adapter.OptionDiscoverable = WindowsAdapter.GetDiscoverableState();
 
                 if (token != default)
                     adapter.OptionDiscovering = DiscoveryWatcher.IsStarted(token);
@@ -64,12 +63,12 @@ internal static class WindowsAdapterExtensions
                         adapter.Alias =
                         adapter.UniqueName =
                             device.GetProperty<string>(DevicePropertyKey.NAME);
-                    adapter.UuiDs = AdapterMethods.GetAdapterServices();
+                    adapter.UuiDs = WindowsAdapter.GetAdapterServices(false);
                 }
             }
             else
             {
-                AdapterMethods.ThrowIfRadioNotOperable();
+                WindowsAdapter.ThrowIfRadioNotOperable();
             }
         }
         catch (Exception e)

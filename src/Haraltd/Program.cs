@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using Haraltd.DataTypes.Generic;
 using Haraltd.Operations;
 using Haraltd.Operations.Commands;

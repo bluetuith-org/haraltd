@@ -1,4 +1,4 @@
-﻿namespace Haraltd.DataTypes.Generic;
+namespace Haraltd.DataTypes.Generic;
 
 internal record StackErrorCode : ErrorCode
 {

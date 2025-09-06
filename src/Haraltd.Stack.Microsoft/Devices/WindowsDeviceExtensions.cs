@@ -1,10 +1,12 @@
-﻿using Haraltd.DataTypes.Generic;
+using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.Models;
+using Haraltd.DataTypes.OperationToken;
 using Haraltd.Stack.Microsoft.Adapters;
 using Haraltd.Stack.Microsoft.Windows;
 using InTheHand.Net;
 using InTheHand.Net.Bluetooth;
 using Microsoft.Win32;
+using Nefarius.Utilities.Bluetooth;
 using Nefarius.Utilities.DeviceManagement.PnP;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Enumeration;
@@ -13,15 +15,13 @@ namespace Haraltd.Stack.Microsoft.Devices;
 
 internal static class WindowsDeviceExtensions
 {
-    internal static ErrorData MergeDeviceByAddress<T>(this T device, string address)
+    internal static ErrorData MergeDeviceByAddress<T>(this T device, BluetoothAddress address)
         where T : notnull, IDevice
     {
         try
         {
-            var parsedAddr = BluetoothAddress.Parse(address);
-
             using var windowsDevice = BluetoothDevice
-                .FromBluetoothAddressAsync(parsedAddr)
+                .FromBluetoothAddressAsync(address)
                 .GetAwaiter()
                 .GetResult();
             return device == null
@@ -89,7 +89,7 @@ internal static class WindowsDeviceExtensions
                 .FromIdAsync(deviceInformation.Id)
                 .GetAwaiter()
                 .GetResult();
-            return device.MergeBluetoothDevice(windowsDevice, appendServices) == Errors.ErrorNone;
+            return device.MergeBluetoothDevice(windowsDevice, true) == Errors.ErrorNone;
         }
 
         if (
@@ -101,8 +101,8 @@ internal static class WindowsDeviceExtensions
         )
             return false;
 
-        device.Address = deviceAddress;
-        device.AssociatedAdapter = adapterAddress;
+        device.Address = deviceAddress.ToString("C");
+        device.AssociatedAdapter = adapterAddress.ToString("C");
 
         foreach (var (aep, value) in deviceInformation.Properties)
         {
@@ -132,7 +132,11 @@ internal static class WindowsDeviceExtensions
         return true;
     }
 
-    internal static ErrorData MergePnpDevice<T>(this T device, PnPDevice pnpDevice)
+    internal static ErrorData MergePnpDevice<T>(
+        this T device,
+        PnPDevice pnpDevice,
+        OperationToken token
+    )
         where T : notnull, IDevice
     {
         try
@@ -144,8 +148,8 @@ internal static class WindowsDeviceExtensions
             if (!DeviceUtils.ParseAepId(aepId, out var adapterAddress, out var deviceAddress))
                 throw new Exception("Cannot parse the device's AEP ID");
 
-            device.Address = deviceAddress;
-            device.AssociatedAdapter = AdapterModelExt.CurrentAddress;
+            device.Address = deviceAddress.ToString("C");
+            device.AssociatedAdapter = adapterAddress.ToString("C");
             device.Class = pnpDevice.GetProperty<uint>(WindowsPnPInformation.Device.Class);
 
             device.OptionConnected = pnpDevice.GetProperty<bool>(
@@ -158,11 +162,8 @@ internal static class WindowsDeviceExtensions
                 WindowsPnPInformation.Device.ServicesRegistryPath(adapterAddress, deviceAddress),
                 false
             );
-            foreach (var services in key?.GetSubKeyNames())
+            foreach (var services in key?.GetSubKeyNames() ?? [])
             {
-                if (services is null)
-                    continue;
-
                 uuids.Add(Guid.Parse(services));
             }
 
@@ -177,10 +178,11 @@ internal static class WindowsDeviceExtensions
         return Errors.ErrorNone;
     }
 
-    internal static ErrorData MergeBatteryInformation<T>(
+    internal static async ValueTask<ErrorData> MergeBatteryInformationAsync<T>(
         this T device,
         string interfaceId,
-        int batteryPercentage
+        int batteryPercentage,
+        OperationToken token
     )
         where T : notnull, IDevice
     {
@@ -190,8 +192,12 @@ internal static class WindowsDeviceExtensions
         )
             return Errors.ErrorUnexpected;
 
+        var (adapterController, error) = await WindowsStack.GetDefaultAdapterAsync(token);
+        if (adapterController == null)
+            return error;
+
         device.Address = address;
-        device.AssociatedAdapter = AdapterModelExt.CurrentAddress;
+        device.AssociatedAdapter = adapterController.Address.ToString("C");
         device.OptionPercentage = batteryPercentage;
 
         return Errors.ErrorNone;

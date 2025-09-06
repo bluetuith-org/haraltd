@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -7,10 +7,8 @@ using System.Security.Principal;
 using H.NotifyIcon.Core;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
-using Haraltd.Operations;
 using Haraltd.Operations.Managers;
 using Haraltd.Operations.OutputStream;
-using Haraltd.Stack;
 using Haraltd.Stack.Base;
 using Windows.Wdk.System.Threading;
 using Windows.Win32;
@@ -21,7 +19,7 @@ using ServerCommand = Haraltd.Operations.Commands.Definitions.Server;
 
 namespace Haraltd.Stack.Microsoft.Server;
 
-public class MsftServer : IServer
+public class WindowsServer : IServer
 {
     public ErrorData StartServer(string socketPath, string newProcessArgs)
     {

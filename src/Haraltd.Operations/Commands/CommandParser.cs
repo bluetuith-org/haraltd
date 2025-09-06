@@ -1,4 +1,4 @@
-﻿using ConsoleAppFramework;
+using ConsoleAppFramework;
 using DotNext;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;

@@ -1,23 +1,24 @@
-﻿using Haraltd.DataTypes.Generic;
+using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.Managers;
 using Haraltd.Stack.Microsoft.Adapters;
+using Haraltd.Stack.Microsoft.Devices;
 using InTheHand.Net;
 using Windows.Devices.Bluetooth;
 using Windows.Media.Audio;
 
-namespace Haraltd.Stack.Microsoft.Devices.Profiles;
+namespace Haraltd.Stack.Microsoft.Profiles;
 
 internal static class A2dp
 {
-    internal static async Task<ErrorData> StartAudioSessionAsync(
+    internal static async ValueTask<ErrorData> StartAudioSessionAsync(
         OperationToken token,
-        string address
+        BluetoothAddress address
     )
     {
         try
         {
-            AdapterMethods.ThrowIfRadioNotOperable();
+            WindowsAdapter.ThrowIfRadioNotOperable();
 
             var audioDeviceId = await DeviceUtils.GetDeviceIdBySelector(
                 address,
@@ -46,7 +47,7 @@ internal static class A2dp
                     try
                     {
                         using var windowsDevice = await BluetoothDevice.FromBluetoothAddressAsync(
-                            BluetoothAddress.Parse(address)
+                            address
                         );
                         windowsDevice.ConnectionStatusChanged += (s, _) =>
                         {

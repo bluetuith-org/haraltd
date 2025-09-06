@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Haraltd.DataTypes.Events;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;

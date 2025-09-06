@@ -1,4 +1,4 @@
-﻿using Haraltd.DataTypes.Generic;
+using Haraltd.DataTypes.Generic;
 using Haraltd.Operations.Managers;
 
 namespace Haraltd.Operations.Commands;

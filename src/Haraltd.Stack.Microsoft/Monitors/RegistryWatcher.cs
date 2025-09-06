@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using WmiLight;
 
 namespace Haraltd.Stack.Microsoft.Monitors;

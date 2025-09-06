@@ -1,8 +1,10 @@
 using ConsoleAppFramework;
 using Haraltd.DataTypes.Generic;
+using Haraltd.DataTypes.Models;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.OutputStream;
-using Haraltd.Stack;
+
+// ReSharper disable InvalidXmlDocComment
 
 namespace Haraltd.Operations.Commands.Definitions;
 
@@ -12,32 +14,42 @@ public class Device
 {
     /// <summary>Get information about a Bluetooth device.</summary>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
-    public int Properties(ConsoleAppContext context, string address)
+    public async Task<int> Properties(ConsoleAppContext context, string address)
     {
-        var (device, error) = OperationHost.Instance.Stack.GetDevice(
-            (OperationToken)context.State,
-            address
-        );
+        DeviceModel props = null;
+        var token = (OperationToken)context.State!;
 
-        return Output.Result(device, error, (OperationToken)context.State);
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            (props, error) = device.Properties();
+
+        return Output.Result(props, error, token);
     }
 
     /// <summary>Disconnect from a Bluetooth device.</summary>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
-    public int Disconnect(ConsoleAppContext context, string address)
+    public async Task<int> Disconnect(ConsoleAppContext context, string address)
     {
-        var error = OperationHost.Instance.Stack.DisconnectDevice(address);
+        var token = (OperationToken)context.State!;
 
-        return Output.Error(error, (OperationToken)context.State);
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            error = await device.DisconnectAsync();
+
+        return Output.Error(error, token);
     }
 
     /// <summary>Remove a Bluetooth device.</summary>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> Remove(ConsoleAppContext context, string address)
     {
-        var error = await OperationHost.Instance.Stack.RemoveDeviceAsync(address);
+        var token = (OperationToken)context.State!;
 
-        return Output.Error(error, (OperationToken)context.State);
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            error = await device.RemoveAsync();
+
+        return Output.Error(error, token);
     }
 }
 
@@ -53,23 +65,27 @@ public class Pairing
     [Command("")]
     public async Task<int> Pair(ConsoleAppContext context, string address, int timeout = 10)
     {
-        var error = await OperationHost.Instance.Stack.PairAsync(
-            (OperationToken)context.State,
-            address,
-            timeout
-        );
+        var token = (OperationToken)context.State!;
 
-        return Output.Error(error, (OperationToken)context.State);
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            error = await device.PairAsync(timeout);
+
+        return Output.Error(error, token);
     }
 
-    [Hidden]
     /// <summary>Cancel pairing with a Bluetooth device.</summary>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
-    public int Cancel(ConsoleAppContext context, string address)
+    [Hidden]
+    public async Task<int> Cancel(ConsoleAppContext context, string address)
     {
-        var error = OperationHost.Instance.Stack.CancelPairing(address);
+        var token = (OperationToken)context.State!;
 
-        return Output.Error(error, (OperationToken)context.State);
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            error = device.CancelPairing();
+
+        return Output.Error(error, token);
     }
 }
 
@@ -82,25 +98,29 @@ public class Connection
     /// </summary>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     [Command("")]
-    public int Connect(ConsoleAppContext context, string address)
+    public async Task<int> Connect(ConsoleAppContext context, string address)
     {
-        var error = OperationHost.Instance.Stack.Connect((OperationToken)context.State, address);
+        var token = (OperationToken)context.State!;
 
-        return Output.Error(error, (OperationToken)context.State);
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            error = await device.ConnectAsync();
+
+        return Output.Error(error, token);
     }
 
-    /// <summary>Connect to a device using a specified profile"</summary>
+    /// <summary>Connect to a device using a specified profile</summary>
     /// <param name="uuid">-u, The Bluetooth service profile as a UUID.</param>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
-    public int Profile(ConsoleAppContext context, string address, Guid uuid)
+    public async Task<int> Profile(ConsoleAppContext context, string address, Guid uuid)
     {
-        var error = OperationHost.Instance.Stack.ConnectProfile(
-            (OperationToken)context.State,
-            address,
-            uuid
-        );
+        var token = (OperationToken)context.State!;
 
-        return Output.Error(error, (OperationToken)context.State);
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            error = await device.ConnectProfileAsync(uuid);
+
+        return Output.Error(error, token);
     }
 }
 
@@ -111,82 +131,87 @@ public class A2dp
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> StartSession(ConsoleAppContext context, string address)
     {
-        var error = await OperationHost.Instance.Stack.StartAudioSessionAsync(
-            (OperationToken)context.State,
-            address
-        );
+        var token = (OperationToken)context.State!;
 
-        return Output.Error(error, (OperationToken)context.State);
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            error = await device.StartAudioSessionAsync();
+
+        return Output.Error(error, token);
     }
 }
 
-/// <summary>Perform a Object Push Profile based operation.</summary>
+/// <summary>Perform an Object Push Profile based operation.</summary>
 [RegisterCommands("device opp")]
 public class Opp
 {
-    [Hidden]
     /// <summary>Start an Object Push client session with a device (RPC mode only).</summary>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
+    [Hidden]
     public async Task<int> StartSession(ConsoleAppContext context, string address)
     {
-        var error = await OperationHost.Instance.Stack.StartFileTransferSessionAsync(
-            (OperationToken)context.State,
-            address
-        );
+        var token = (OperationToken)context.State!;
 
-        return Output.Error(error, (OperationToken)context.State);
-    }
-
-    [Hidden]
-    /// <summary>Send a file to a device with an open session. (RPC mode only).</summary>
-    /// <param name="file">-f, A full path of the file to send.</param>
-    public int SendFile(ConsoleAppContext context, string address, string file)
-    {
-        var token = (OperationToken)context.State;
-        var (filetransfer, error) = OperationHost.Instance.Stack.QueueFileSend(
-            token,
-            address,
-            file
-        );
-
-        return Output.Result(filetransfer, error, token);
-    }
-
-    [Hidden]
-    /// <summary>Cancel an Object Push file transfer with a device (RPC mode only).</summary>
-    /// <param name="address">-a, The address of the Bluetooth device.</param>
-    public int CancelTransfer(ConsoleAppContext context, string address)
-    {
-        var token = (OperationToken)context.State;
-
-        var error = OperationHost.Instance.Stack.CancelFileTransfer(token, address);
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            error = await device.StartFileTransferSessionAsync();
 
         return Output.Error(error, token);
     }
 
+    /// <summary>Send a file to a device with an open session. (RPC mode only).</summary>
+    /// <param name="file">-f, A full path of the file to send.</param>
     [Hidden]
+    public async Task<int> SendFile(ConsoleAppContext context, string address, string file)
+    {
+        var fileTransferModel = new FileTransferModel();
+        var token = (OperationToken)context.State!;
+
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            (fileTransferModel, error) = device.QueueFileSend(file);
+
+        return Output.Result(fileTransferModel, error, token);
+    }
+
+    /// <summary>Cancel an Object Push file transfer with a device (RPC mode only).</summary>
+    /// <param name="address">-a, The address of the Bluetooth device.</param>
+    [Hidden]
+    public async Task<int> CancelTransfer(ConsoleAppContext context, string address)
+    {
+        var token = (OperationToken)context.State!;
+
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            error = await device.CancelFileTransferSessionAsync();
+
+        return Output.Error(error, token);
+    }
+
     /// <summary>Suspend an Object Push file transfer with a device (no-op, RPC mode only).</summary>
+    [Hidden]
     public int SuspendTransfer(ConsoleAppContext context)
     {
-        return Output.Error(Errors.ErrorUnsupported, (OperationToken)context.State);
+        return Output.Error(Errors.ErrorUnsupported, (OperationToken)context.State!);
     }
 
-    [Hidden]
     /// <summary>Resume an Object Push file transfer with a device (no-op, RPC mode only).</summary>
+    [Hidden]
     public int ResumeTransfer(ConsoleAppContext context)
     {
-        return Output.Error(Errors.ErrorUnsupported, (OperationToken)context.State);
+        return Output.Error(Errors.ErrorUnsupported, (OperationToken)context.State!);
     }
 
-    [Hidden]
     /// <summary>Stop an Object Push client session with a device (RPC mode only).</summary>
-    public int StopSession(ConsoleAppContext context, string address)
+    [Hidden]
+    public async Task<int> StopSession(ConsoleAppContext context, string address)
     {
-        var token = (OperationToken)context.State;
+        var token = (OperationToken)context.State!;
 
-        return Output.Error(
-            OperationHost.Instance.Stack.StopFileTransferSession(token, address),
-            token
-        );
+        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        if (device != null)
+            error = await device.StopFileTransferSessionAsync();
+
+        return Output.Error(error, token);
     }
 }

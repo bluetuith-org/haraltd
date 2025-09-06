@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices.WindowsRuntime;
+using System.Runtime.InteropServices.WindowsRuntime;
 using Haraltd.Stack.Microsoft.Adapters;
 using InTheHand.Net;
 using InTheHand.Net.Bluetooth;
@@ -32,12 +32,16 @@ internal static class DeviceUtils
                     var vals = attribute
                         .Value.GetValueAsElementList()
                         .FirstOrDefault()
-                        .GetValueAsElementList();
+                        ?.GetValueAsElementList();
 
                     // values in a list from most to least specific so read the first entry
-                    var mostSpecific = vals.FirstOrDefault();
-                    // short ids are automatically converted to a long Guid
-                    protocolUuid = mostSpecific.GetValueAsUuid();
+                    if (vals != null)
+                    {
+                        var mostSpecific = vals.FirstOrDefault();
+                        // short ids are automatically converted to a long Guid
+                        if (mostSpecific != null)
+                            protocolUuid = mostSpecific.GetValueAsUuid();
+                    }
                 }
                 catch
                 {
@@ -55,24 +59,30 @@ internal static class DeviceUtils
                     // values in a list from most to least specific so read the first entry
                     var mostSpecific = vals.FirstOrDefault();
                     // short ids are automatically converted to a long Guid
-                    var guid = mostSpecific.GetValueAsUuid();
+                    if (mostSpecific != null)
+                    {
+                        var guid = mostSpecific.GetValueAsUuid();
 
-                    services.Add(guid);
+                        services.Add(guid);
+                    }
                 }
-                catch { }
+                catch
+                {
+                    // ignored
+                }
         }
 
         return [.. services];
     }
 
-    internal static bool ParseAepId(
+    internal static bool ParseAepIdAsString(
         string aepId,
         out string adapterAddress,
         out string deviceAddress
     )
     {
-        adapterAddress = "";
-        deviceAddress = "";
+        adapterAddress = null;
+        deviceAddress = null;
 
         var removeIdentifier = "Bluetooth#Bluetooth";
         if (aepId.StartsWith("BluetoothLE"))
@@ -84,20 +94,42 @@ internal static class DeviceUtils
         if (addresses.Length == 0)
             return false;
 
-        adapterAddress = addresses[0];
-        deviceAddress = addresses[1];
+        try
+        {
+            adapterAddress = addresses[0];
+            deviceAddress = addresses[1];
+        }
+        catch
+        {
+            return false;
+        }
 
         return true;
     }
 
-    internal static string HostAddress(string address)
+    internal static bool ParseAepId(
+        string aepId,
+        out BluetoothAddress adapterAddress,
+        out BluetoothAddress deviceAddress
+    )
     {
-        return string.IsNullOrEmpty(address) ? "" : address.Replace("(", "").Replace(")", "");
+        adapterAddress = null;
+        deviceAddress = null;
+
+        if (ParseAepIdAsString(aepId, out var adapterAddr, out var deviceAddr))
+        {
+            adapterAddress = BluetoothAddress.Parse(adapterAddr);
+            deviceAddress = BluetoothAddress.Parse(deviceAddr);
+
+            return true;
+        }
+
+        return false;
     }
 
 #nullable enable
     internal static async Task<BluetoothDevice> GetBluetoothDeviceWithService(
-        string address,
+        BluetoothAddress address,
         Guid service
     )
     {
@@ -113,21 +145,22 @@ internal static class DeviceUtils
             : device;
     }
 
-    internal static async Task<BluetoothDevice> GetBluetoothDevice(string address)
+    internal static async Task<BluetoothDevice> GetBluetoothDevice(BluetoothAddress address)
     {
-        AdapterMethods.ThrowIfRadioNotOperable();
+        WindowsAdapter.ThrowIfRadioNotOperable();
 
-        var device = await BluetoothDevice.FromBluetoothAddressAsync(
-            BluetoothAddress.Parse(address)
-        );
+        var device = await BluetoothDevice.FromBluetoothAddressAsync(address);
         return device
             ?? throw new ArgumentNullException($"The device with address {address} was not found.");
     }
 
-    internal static async Task<string> GetDeviceIdBySelector(string address, string selector)
+    internal static async Task<string> GetDeviceIdBySelector(
+        BluetoothAddress address,
+        string selector
+    )
     {
         var deviceId = "";
-        ulong addressAsUlong = BluetoothAddress.Parse(address);
+        ulong addressAsUlong = address;
 
         foreach (var deviceInfo in await DeviceInformation.FindAllAsync(selector))
         {

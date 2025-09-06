@@ -1,4 +1,4 @@
-﻿/*
+/*
  * This is a heavily modified version of the AudioDeviceEnumerator and AudioDevice implementations
  * in the "https://github.com/PolarGoose/BluetoothDevicePairing" repository.
  *

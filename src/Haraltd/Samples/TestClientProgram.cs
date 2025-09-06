@@ -1,4 +1,4 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;

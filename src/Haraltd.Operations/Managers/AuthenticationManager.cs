@@ -1,4 +1,4 @@
-﻿using DotNext.Threading;
+using DotNext.Threading;
 using Haraltd.DataTypes.Events;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;

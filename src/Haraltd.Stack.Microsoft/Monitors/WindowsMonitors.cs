@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Timers;
 using Haraltd.DataTypes.Generic;

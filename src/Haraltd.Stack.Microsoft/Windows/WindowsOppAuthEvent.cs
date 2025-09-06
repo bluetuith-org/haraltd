@@ -1,4 +1,4 @@
-﻿using Haraltd.DataTypes.Events;
+using Haraltd.DataTypes.Events;
 using Haraltd.DataTypes.OperationToken;
 
 namespace Haraltd.Stack.Microsoft.Windows;

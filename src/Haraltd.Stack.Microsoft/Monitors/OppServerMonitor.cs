@@ -1,4 +1,4 @@
-﻿using Haraltd.Stack.Microsoft.Devices.Profiles;
+using Haraltd.Stack.Microsoft.Profiles;
 
 namespace Haraltd.Stack.Microsoft.Monitors;
 
@@ -16,14 +16,14 @@ internal partial class OppServerMonitor : AdapterStateMonitor
     public override bool Start()
     {
         if (base.Start())
-            Opp.StartFileTransferServerAsync(Token).GetAwaiter().GetResult();
+            Opp.StartFileTransferServerAsync(Token, AdapterAddress).GetAwaiter().GetResult();
 
         return IsCreated;
     }
 
     public override void Stop()
     {
-        Opp.StopFileTransferServer(Token);
+        Opp.StopFileTransferServerAsync(Token, AdapterAddress).GetAwaiter().GetResult();
         base.Stop();
     }
 }

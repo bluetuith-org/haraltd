@@ -1,10 +1,12 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.Models;
 using Haraltd.DataTypes.OperationToken;
+using Haraltd.Stack.Base;
 using Haraltd.Stack.Microsoft.Devices;
 using Haraltd.Stack.Microsoft.Monitors;
 using Haraltd.Stack.Microsoft.Windows;
+using InTheHand.Net;
 using Microsoft.Win32;
 using Nefarius.Utilities.Bluetooth;
 using Nefarius.Utilities.DeviceManagement.PnP;
@@ -15,26 +17,45 @@ using Windows.Win32.Storage.FileSystem;
 
 namespace Haraltd.Stack.Microsoft.Adapters;
 
-internal static class AdapterMethods
+public partial class WindowsAdapter(BluetoothAdapter adapter, OperationToken token)
+    : SafeHandle(-1, true),
+        IAdapterController
 {
-    internal static ErrorData DisconnectDevice(string address)
+    public BluetoothAddress Address => adapter.BluetoothAddress;
+    public override bool IsInvalid => false;
+
+    public (AdapterModel, ErrorData) Properties()
+    {
+        return ConvertToAdapterModel(token);
+    }
+
+    public static (AdapterModel Adapter, ErrorData Error) ConvertToAdapterModel(
+        OperationToken token
+    )
+    {
+        AdapterModel adapter = new();
+
+        return (adapter, adapter.MergeRadioData(token));
+    }
+
+    public async ValueTask<ErrorData> DisconnectDeviceAsync(BluetoothAddress address)
     {
         try
         {
             ThrowIfRadioNotOperable();
 
             using HostRadio radio = new();
-            radio.DisconnectRemoteDevice(address);
+            radio.DisconnectRemoteDevice(address.ToString("C"));
         }
         catch (Exception e)
         {
             return Errors.ErrorDeviceDisconnect.AddMetadata("exception", e.Message);
         }
 
-        return Errors.ErrorNone;
+        return await ValueTask.FromResult(Errors.ErrorNone);
     }
 
-    internal static (GenericResult<List<DeviceModel>>, ErrorData) GetPairedDevices()
+    public (GenericResult<List<DeviceModel>>, ErrorData) GetPairedDevices()
     {
         List<DeviceModel> pairedDevices = [];
         var error = Errors.ErrorNone;
@@ -52,7 +73,7 @@ internal static class AdapterMethods
                 )
             )
             {
-                var (device, convertError) = DeviceModelExt.ConvertToDeviceModel(pnpDevice);
+                var (device, convertError) = WindowsDevice.ConvertToDeviceModel(pnpDevice, token);
                 if (convertError != Errors.ErrorNone)
                 {
                     error = convertError;
@@ -76,7 +97,7 @@ internal static class AdapterMethods
         return (pairedDevices.ToResult("Paired Devices:", "paired_devices"), error);
     }
 
-    internal static async Task<ErrorData> RemoveDeviceAsync(string address)
+    public async Task<ErrorData> RemoveDeviceAsync(BluetoothAddress address)
     {
         try
         {
@@ -95,7 +116,9 @@ internal static class AdapterMethods
 
             var res = PInvoke.BluetoothRemoveDevice(addressParam);
             if (res != 0)
-                throw new Exception($"could not unpair device with address {address}");
+                throw new Exception(
+                    $"could not unpair device with address {address.ToString("C")}"
+                );
         }
         catch (Exception ex)
         {
@@ -105,7 +128,7 @@ internal static class AdapterMethods
         return Errors.ErrorNone;
     }
 
-    internal static ErrorData SetPoweredState(bool enable)
+    public ErrorData SetPoweredState(bool enable)
     {
         try
         {
@@ -127,12 +150,12 @@ internal static class AdapterMethods
         return Errors.ErrorNone;
     }
 
-    internal static ErrorData SetPairableState(bool _)
+    public ErrorData SetPairableState(bool enable)
     {
         return Errors.ErrorUnsupported;
     }
 
-    internal static unsafe ErrorData SetDiscoverableState(bool enable)
+    public unsafe ErrorData SetDiscoverableState(bool enable)
     {
         SafeHandle radioHandle = null;
 
@@ -185,7 +208,7 @@ internal static class AdapterMethods
         return Errors.ErrorNone;
     }
 
-    internal static bool? GetDiscoverableState()
+    public static bool GetDiscoverableState()
     {
         var discoverable = false;
 
@@ -208,7 +231,10 @@ internal static class AdapterMethods
 
             discoverable = PInvoke.BluetoothIsDiscoverable(radioHandle) > 0;
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
         finally
         {
             radioHandle?.Close();
@@ -217,29 +243,36 @@ internal static class AdapterMethods
         return discoverable;
     }
 
-    internal static Guid[] GetAdapterServices()
+    public Guid[] GetServices() => GetAdapterServices();
+
+    public static Guid[] GetAdapterServices(bool checkForAdapter = true)
     {
         var services = new List<Guid>();
 
         try
         {
-            if (Devcon.FindByInterfaceGuid(HostRadio.DeviceInterface, out _))
+            if (checkForAdapter && !Devcon.FindByInterfaceGuid(HostRadio.DeviceInterface, out _))
             {
-                using var key = Registry.LocalMachine.OpenSubKey(
-                    WindowsPnPInformation.Adapter.ServicesRegistryPath,
-                    false
-                );
-                if (key is not null)
-                    foreach (var subkeys in key.GetSubKeyNames())
-                        services.Add(Guid.Parse(subkeys));
+                return [];
             }
+
+            using var key = Registry.LocalMachine.OpenSubKey(
+                WindowsPnPInformation.Adapter.ServicesRegistryPath,
+                false
+            );
+            if (key is not null)
+                foreach (var subkeys in key.GetSubKeyNames())
+                    services.Add(Guid.Parse(subkeys));
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
 
         return [.. services];
     }
 
-    internal static ErrorData StartDeviceDiscovery(OperationToken token, int timeout = 0)
+    public ErrorData StartDeviceDiscovery(int timeout = 0)
     {
         try
         {
@@ -259,14 +292,19 @@ internal static class AdapterMethods
         }
     }
 
-    internal static ErrorData StopDeviceDiscovery(OperationToken token)
+    public ErrorData StopDeviceDiscovery()
     {
         return DiscoveryWatcher.Stop(token);
     }
 
-    internal static void ThrowIfRadioNotOperable()
+    public static void ThrowIfRadioNotOperable()
     {
         if (!HostRadio.IsOperable)
             throw new Exception("The host radio cannot be accessed");
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        return true;
     }
 }

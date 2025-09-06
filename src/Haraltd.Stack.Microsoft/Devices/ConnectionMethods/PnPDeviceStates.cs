@@ -1,4 +1,4 @@
-﻿using Haraltd.DataTypes.Generic;
+using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.Models;
 using Haraltd.Stack.Microsoft.Windows;
 using Nefarius.Utilities.Bluetooth;
@@ -28,7 +28,7 @@ internal static class PnPDeviceStates
                 )
                 {
                     var aepId = pnpDevice.GetProperty<string>(aepIdProperty);
-                    if (!DeviceUtils.ParseAepId(aepId, out _, out var deviceAddress))
+                    if (!DeviceUtils.ParseAepIdAsString(aepId, out _, out var deviceAddress))
                         continue;
 
                     if (device.Address == deviceAddress)

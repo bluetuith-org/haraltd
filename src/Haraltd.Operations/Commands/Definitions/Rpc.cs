@@ -3,7 +3,6 @@ using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.Managers;
 using Haraltd.Operations.OutputStream;
-using Haraltd.Stack;
 
 namespace Haraltd.Operations.Commands.Definitions;
 

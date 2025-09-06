@@ -1,4 +1,4 @@
-﻿using Haraltd.DataTypes.Events;
+using Haraltd.DataTypes.Events;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.OutputStream;
@@ -102,7 +102,7 @@ internal partial class DevicesBatteryStateMonitor : IMonitor
         _monitor?.Dispose();
     }
 
-    private void EventWatcher_EventArrived(object s, WmiEventArrivedEventArgs e)
+    private async void EventWatcher_EventArrived(object s, WmiEventArrivedEventArgs e)
     {
         try
         {
@@ -130,9 +130,10 @@ internal partial class DevicesBatteryStateMonitor : IMonitor
                     {
                         var deviceEvent = new DeviceEvent { Action = EventAction.Updated };
 
-                        var error = deviceEvent.MergeBatteryInformation(
+                        var error = await deviceEvent.MergeBatteryInformationAsync(
                             pnpDevice.DeviceId,
-                            batteryPercentage
+                            batteryPercentage,
+                            _token
                         );
 
                         if (error == Errors.ErrorNone)

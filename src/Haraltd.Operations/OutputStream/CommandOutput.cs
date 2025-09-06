@@ -1,4 +1,4 @@
-﻿using Haraltd.DataTypes.Generic;
+using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.Managers;
 

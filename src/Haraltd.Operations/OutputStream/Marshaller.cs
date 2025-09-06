@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
 

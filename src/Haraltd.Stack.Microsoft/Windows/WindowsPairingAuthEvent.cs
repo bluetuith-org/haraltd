@@ -1,7 +1,8 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Haraltd.DataTypes.Events;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.DataTypes.Serializer;
+using InTheHand.Net;
 using Windows.Devices.Enumeration;
 using SerializableContext = Haraltd.DataTypes.Serializer.SerializableContext;
 
@@ -12,7 +13,7 @@ internal record WindowsPairingAuthEvent : PairingAuthenticationEvent
     private readonly DevicePairingKinds _devicePairingKinds;
 
     internal WindowsPairingAuthEvent(
-        string address,
+        BluetoothAddress address,
         string pin,
         int timeout,
         DevicePairingKinds pairingKind,

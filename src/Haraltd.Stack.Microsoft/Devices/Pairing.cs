@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.Managers;
@@ -18,7 +18,7 @@ internal class Pairing
 
     internal async Task<ErrorData> PairAsync(
         OperationToken operationToken,
-        string address,
+        BluetoothAddress address,
         int timeout = 10
     )
     {
@@ -26,7 +26,7 @@ internal class Pairing
         {
             _timeout = timeout * 1000;
 
-            if (!PendingPairing.TryAdd(BluetoothAddress.Parse(address), operationToken))
+            if (!PendingPairing.TryAdd(address, operationToken))
                 return Errors.ErrorOperationInProgress;
 
             using var device = await DeviceUtils.GetBluetoothDevice(address);
@@ -65,9 +65,9 @@ internal class Pairing
         return Errors.ErrorNone;
     }
 
-    internal static ErrorData CancelPairing(string address)
+    internal static ErrorData CancelPairing(BluetoothAddress address)
     {
-        if (PendingPairing.TryRemove(BluetoothAddress.Parse(address), out var token))
+        if (PendingPairing.TryRemove(address, out var token))
             token.Release();
         else
             return Errors.ErrorDeviceNotFound;
@@ -100,9 +100,13 @@ internal class Pairing
         }
     }
 
-    private bool GetAuthResponse(string address, string pin, DevicePairingKinds pairingKinds)
+    private bool GetAuthResponse(
+        BluetoothAddress address,
+        string pin,
+        DevicePairingKinds pairingKinds
+    )
     {
-        if (!PendingPairing.TryGetValue(BluetoothAddress.Parse(address), out var token))
+        if (!PendingPairing.TryGetValue(address, out var token))
             return false;
 
         WindowsPairingAuthEvent authEvent = new(address, pin, _timeout, pairingKinds, token);

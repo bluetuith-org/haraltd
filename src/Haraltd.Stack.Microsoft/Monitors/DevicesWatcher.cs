@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Timers;
 using DotNext.Threading;
 using Haraltd.DataTypes.Events;

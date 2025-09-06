@@ -1,4 +1,4 @@
-﻿using Haraltd.DataTypes.OperationToken;
+using Haraltd.DataTypes.OperationToken;
 
 namespace Haraltd.Stack.Microsoft.Monitors;
 

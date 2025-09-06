@@ -1,4 +1,4 @@
-﻿using Haraltd.DataTypes.Events;
+using Haraltd.DataTypes.Events;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
 using static Haraltd.Operations.Managers.AuthenticationManager;

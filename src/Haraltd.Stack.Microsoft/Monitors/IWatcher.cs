@@ -1,4 +1,4 @@
-﻿namespace Haraltd.Stack.Microsoft.Monitors;
+namespace Haraltd.Stack.Microsoft.Monitors;
 
 internal interface IWatcher : IDisposable
 {
