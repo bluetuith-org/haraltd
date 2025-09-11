@@ -31,8 +31,6 @@ jobs:
         github.event_name == 'workflow_dispatch'
       shell: bash
       run: |
-        mkdir "../Libraries/"
-        git clone "https://github.com/bluetuith-org/MyPhone.Obex" "../Libraries/MyPhone.OBEX"
         git clone "https://github.com/bluetuith-org/dotnet-releaser" ../tools/dn/
         dotnet tool install --global csharpier
         dotnet build ../tools/dn/src/dotnet-releaser/dotnet-releaser.csproj -c Release
