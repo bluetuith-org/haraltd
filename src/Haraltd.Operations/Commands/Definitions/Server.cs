@@ -13,6 +13,7 @@ public class Server
     /// <summary>Start a daemon server instance which will open a UNIX socket to perform RPC related functions.</summary>
     /// <param name="socketPath">-s, The full path and the socket name to be created and listened on.</param>
     /// <param name="tray">-t, Tray</param>
+    // ReSharper disable once InvalidXmlDocComment
     public int Start(ConsoleAppContext context, string socketPath = "", bool tray = false)
     {
         if (Output.IsOnSocket)
@@ -32,6 +33,8 @@ public class Server
     }
 
     /// <summary>Stop all daemon server instances in the current user session.</summary>
+    /// <param name="tray">-t, Tray</param>
+    // ReSharper disable once InvalidXmlDocComment
     public int Stop(ConsoleAppContext context, bool tray = false)
     {
         if (Output.IsOnSocket)

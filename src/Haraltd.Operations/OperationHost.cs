@@ -10,7 +10,7 @@ public interface IOperationHost
 
 public static class OperationHost
 {
-    private static IOperationHost _host = null;
+    private static IOperationHost _host;
     public static IOperationHost Instance =>
         _host ?? throw new NullReferenceException("The host was not initialized.");
 
