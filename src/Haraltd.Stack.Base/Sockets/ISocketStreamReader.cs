@@ -1,7 +1,3 @@
-using DotNext;
-using DotNext.Buffers;
-using DotNext.IO;
-
 namespace Haraltd.Stack.Base.Sockets;
 
 public interface ISocketStreamReader : IDisposable
@@ -13,8 +9,6 @@ public interface ISocketStreamReader : IDisposable
     public byte ReadByte();
 
     public void ReadBytes(byte[] value);
-
-    public ulong ReadUInt64();
 
     public ushort ReadUInt16();
 }

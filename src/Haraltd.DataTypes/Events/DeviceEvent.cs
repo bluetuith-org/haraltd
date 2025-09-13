@@ -11,6 +11,10 @@ namespace Haraltd.DataTypes.Events;
 
 public interface IDeviceEvent
 {
+    [JsonPropertyName("name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string Name { get; set; }
+
     [JsonPropertyName("address")]
     public string Address { get; set; }
 
@@ -45,11 +49,14 @@ public interface IDeviceEvent
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Guid[] OptionUuiDs { get; set; }
 
-    public void AppendEventProperties(ref StringBuilder stringBuilder);
+    public void AppendEventProperties(ref StringBuilder stringBuilder, EventAction action);
+
+    public void ResetProperties();
 }
 
 public abstract record DeviceEventBaseModel : IDeviceEvent
 {
+    public string Name { get; set; } = "";
     public string Address { get; set; } = "";
     public string AssociatedAdapter { get; set; } = "";
 
@@ -61,8 +68,14 @@ public abstract record DeviceEventBaseModel : IDeviceEvent
     public int? OptionPercentage { get; set; }
     public Guid[] OptionUuiDs { get; set; }
 
-    public void AppendEventProperties(ref StringBuilder stringBuilder)
+    public void AppendEventProperties(
+        ref StringBuilder stringBuilder,
+        EventAction action = EventAction.None
+    )
     {
+        stringBuilder.AppendLine(
+            $"({(action == EventAction.None ? "" : action + " ")})Name: {Name}"
+        );
         stringBuilder.AppendLine($"Address: {Address}");
         stringBuilder.AppendLine($"Adapter: {AssociatedAdapter}");
 
@@ -84,6 +97,20 @@ public abstract record DeviceEventBaseModel : IDeviceEvent
                 stringBuilder.AppendLine($"{serviceName} = {uuid}");
             }
         }
+
+        stringBuilder.AppendLine();
+    }
+
+    public void ResetProperties()
+    {
+        Address = null;
+        AssociatedAdapter = null;
+        OptionConnected = null;
+        OptionPaired = null;
+        OptionBlocked = null;
+        OptionRssi = null;
+        OptionPercentage = null;
+        OptionUuiDs = null;
     }
 }
 
@@ -96,7 +123,7 @@ public record DeviceEvent : DeviceModel, IEvent
     public new string ToConsoleString()
     {
         StringBuilder stringBuilder = new();
-        AppendEventProperties(ref stringBuilder);
+        AppendEventProperties(ref stringBuilder, Action);
 
         return stringBuilder.ToString();
     }

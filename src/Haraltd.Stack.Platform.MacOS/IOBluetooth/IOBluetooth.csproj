@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>true</ImplicitUsings>
+    <IsBindingProject>true</IsBindingProject>
+    <IsTrimmable>true</IsTrimmable>
+    <RootNamespace>IOBluetooth</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="Shim/ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="Shim/StructsAndEnums.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Haraltd.DataTypes\Haraltd.DataTypes.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <XcodeProject Include="Shim/BluetoothShim/BluetoothShim.xcodeproj" SchemeName="BluetoothShim" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="CSharpier.MsBuild" Version="1.2.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

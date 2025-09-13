@@ -9,10 +9,14 @@ public static class OperationManager
     private static readonly ConcurrentDictionary<long, OperationInstance> Operations = new();
     private static long _operationId;
 
-    public static void ExecuteHandler(OperationToken token, string[] args)
+    public static void ExecuteHandler(
+        OperationToken token,
+        string[] args,
+        CommandParserContext parserContext = null
+    )
     {
         if (Operations.TryAdd(token.OperationId, new OperationInstance(token, false, false)))
-            CommandParser.Parse(token, args);
+            CommandParser.Parse(token, args, parserContext);
     }
 
     public static bool GetToken(long operationId, out OperationToken token)

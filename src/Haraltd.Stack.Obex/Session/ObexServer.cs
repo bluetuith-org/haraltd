@@ -25,7 +25,9 @@ public class ObexServer<TSubServer, TProperties>(ObexService service, TPropertie
 
     public async ValueTask<ErrorData> StartAsync()
     {
-        (_listener, var error) = Stack.CreateSocketListener(service.ServiceGuid);
+        (_listener, var error) = Stack.CreateSocketListener(
+            service.GetServiceSocketListenerOptions()
+        );
         try
         {
             error = _listener != null ? await _listener.StartAdvertisingAsync() : error;
@@ -57,17 +59,18 @@ public class ObexServer<TSubServer, TProperties>(ObexService service, TPropertie
     {
         try
         {
-            var subServer = new TSubServer();
-            subServer.Initialize(socket, Token.LinkedCancelTokenSource, properties);
             _ = Task.Run(async () =>
             {
+                var subServer = new TSubServer();
+                subServer.Initialize(socket, Token.LinkedCancelTokenSource, properties);
+
                 try
                 {
                     await Sessions.StartAsyncByAddress(Token, socket.Address, subServer);
                 }
                 catch
                 {
-                    // ignored
+                    subServer.Dispose();
                 }
             });
         }
@@ -105,8 +108,6 @@ public class ObexServer<TSubServer, TProperties>(ObexService service, TPropertie
 public class ObexSubServer<T> : IObexSession
     where T : ObexServerProperties, new()
 {
-    private IDeviceController _deviceController;
-
     protected T Properties;
     protected ISocket Socket;
     protected CancellationTokenSource Cts;
@@ -118,11 +119,15 @@ public class ObexSubServer<T> : IObexSession
 
     public virtual async ValueTask<ErrorData> StartAsync()
     {
-        (_deviceController, var error) = await Stack.GetDeviceAsync(Socket.Address, Token);
-        if (_deviceController != null)
-            _deviceController.OnDeviceConnectionStateChanged += OnConnectionStateChanged;
+        await ValueTask.CompletedTask;
 
-        return error;
+        var canSubscribe = Socket.CanSubscribeToEvents;
+        if (canSubscribe)
+        {
+            Socket.ConnectionStatusEvent += OnConnectionStateChanged;
+        }
+
+        return canSubscribe ? Errors.ErrorNone : Errors.ErrorDeviceNotFound;
     }
 
     public virtual ValueTask<ErrorData> StopAsync()
@@ -134,7 +139,6 @@ public class ObexSubServer<T> : IObexSession
     public virtual async ValueTask<ErrorData> CancelTransferAsync()
     {
         await Cts.CancelAsync();
-        Cts = Token.LinkedCancelTokenSource;
 
         return Errors.ErrorNone;
     }
@@ -154,8 +158,7 @@ public class ObexSubServer<T> : IObexSession
 
     public virtual void Dispose()
     {
-        _deviceController.OnDeviceConnectionStateChanged -= OnConnectionStateChanged;
-        _deviceController.Dispose();
+        Socket.ConnectionStatusEvent -= OnConnectionStateChanged;
 
         Cts.Dispose();
         Socket.Dispose();

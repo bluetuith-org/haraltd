@@ -10,28 +10,72 @@ namespace Haraltd.Operations.Commands;
 public static class CommandParser
 {
     private static readonly ConsoleApp.ConsoleAppBuilder App = ConsoleApp.Create();
-    private static readonly UserDataSlot<OperationToken> Slot = new();
+    private static readonly UserDataSlot<CommandParserContext> Slot = new();
 
     static CommandParser()
     {
+        App.UseFilter<ServerCommandFilter>();
         App.UseFilter<ParserFilter>();
 
-        if (Output.IsOnSocket)
+        ConsoleApp.Log = msg =>
         {
-            ConsoleApp.Log = static delegate { };
-            ConsoleApp.LogError = static msg =>
-                Output.Event(
-                    Errors.ErrorUnexpected.AddMetadata("command_error", msg),
-                    OperationToken.None
-                );
-        }
+            Console.WriteLine(msg);
+            Environment.Exit(0);
+        };
+
+        ConsoleApp.LogError = msg =>
+        {
+            Console.WriteLine(msg);
+            Environment.Exit(1);
+        };
     }
 
-    public static void Parse(OperationToken token, string[] args)
+    public static void Parse(
+        OperationToken token,
+        string[] args,
+        CommandParserContext parserContext = null
+    )
     {
-        args.GetUserData().Set(Slot, token);
+        parserContext ??= new CommandParserContext(token, true);
+
+        args.GetUserData().Set(Slot, parserContext);
 
         App.Run(args);
+    }
+
+    // TODO: Please change this.
+    internal sealed class ServerCommandFilter(ConsoleAppFilter next) : ConsoleAppFilter(next)
+    {
+        public override async Task InvokeAsync(
+            ConsoleAppContext context,
+            CancellationToken cancellationToken
+        )
+        {
+            if (!context.Arguments.GetUserData().TryGet(Slot, out var parserInfo))
+                return;
+
+            var isServerCommand =
+                context.Arguments.First() is "server"
+                && context.Arguments.Length > 1
+                && context.Arguments[1] is "start";
+
+            switch (isServerCommand)
+            {
+                case true:
+                    ConsoleApp.Log = static delegate { };
+                    ConsoleApp.LogError = static delegate { };
+                    break;
+
+                case false:
+                    Output.SetContinue();
+                    break;
+            }
+
+            if (parserInfo != null)
+                parserInfo.IsServerCommand = isServerCommand;
+
+            await Next.InvokeAsync(context, cancellationToken);
+        }
     }
 
     internal sealed class ParserFilter(ConsoleAppFilter next) : ConsoleAppFilter(next)
@@ -41,36 +85,134 @@ public static class CommandParser
             CancellationToken cancellationToken
         )
         {
-            var token = OperationToken.None;
-            var exitCode = 0;
+            var error = Errors.ErrorNone;
+
+            if (!context.Arguments.GetUserData().TryGet(Slot, out var parserInfo))
+                return;
+
+            context = context with { State = parserInfo };
 
             try
             {
-                if (!context.Arguments.GetUserData().TryGet(Slot, out token))
-                    throw new InvalidDataException(
-                        "Token was not found from the attached data slot"
-                    );
-
-                context = context with { State = token };
-
                 await Next.InvokeAsync(context, cancellationToken);
             }
             catch (Exception ex)
             {
-                exitCode = 1;
-
-                Output.Error(
-                    ExecutorErrors.ErrorParsingCommand.AddMetadata("exception", ex.Message),
-                    token
-                );
+                error = ExecutorErrors.ErrorParsingCommand.AddMetadata("exception", ex.Message);
+                if (parserInfo.ShouldOutputError)
+                    Output.Error(error, parserInfo.Token);
             }
             finally
             {
-                OperationManager.RemoveToken(token);
+                OperationManager.RemoveToken(parserInfo.Token);
+                parserInfo.Error = error;
+                parserInfo.IsParsed = false;
 
-                if (!Output.IsOnSocket)
-                    Environment.ExitCode = exitCode;
+                context.Arguments.GetUserData().Remove(Slot);
             }
         }
+    }
+}
+
+public record class CommandParserContext
+{
+    private readonly ManualResetEvent _commandContinuationEvent;
+
+    private readonly TaskCompletionSource<bool> _isServerCommandCheck;
+    private readonly TaskCompletionSource<bool> _isCommandParsed;
+    private readonly TaskCompletionSource<ErrorData> _commandCompletedWithError;
+
+    internal readonly bool ShouldOutputError = false;
+    internal OperationToken Token { get; private set; }
+
+    public CommandParserContext(OperationToken token)
+    {
+        Token = token;
+        _commandContinuationEvent = new ManualResetEvent(false);
+        _isCommandParsed = new TaskCompletionSource<bool>();
+        _isServerCommandCheck = new TaskCompletionSource<bool>();
+        _commandCompletedWithError = new TaskCompletionSource<ErrorData>();
+    }
+
+    internal CommandParserContext(OperationToken token, bool shouldOutputError)
+    {
+        Token = token;
+        ShouldOutputError = shouldOutputError;
+    }
+
+    public bool IsParsed
+    {
+        get
+        {
+            if (_isCommandParsed == null)
+                throw new NullReferenceException($"{nameof(IsParsed)}");
+
+            return _isCommandParsed.Task.Result;
+        }
+        set
+        {
+            if (_isCommandParsed == null)
+                return;
+
+            if (_isCommandParsed.Task.IsCompleted)
+                return;
+
+            _isCommandParsed.TrySetResult(value);
+        }
+    }
+
+    public bool IsServerCommand
+    {
+        get
+        {
+            if (_isServerCommandCheck == null)
+                throw new NullReferenceException($"{nameof(IsServerCommand)}");
+
+            return _isServerCommandCheck.Task.Result;
+        }
+        set
+        {
+            if (_isServerCommandCheck == null)
+                return;
+
+            if (_isServerCommandCheck.Task.IsCompleted)
+                return;
+
+            _isServerCommandCheck.SetResult(value);
+        }
+    }
+
+    public ErrorData Error
+    {
+        get
+        {
+            if (_commandCompletedWithError == null)
+                throw new NullReferenceException($"{nameof(ErrorData)}");
+
+            return _commandCompletedWithError.Task.Result;
+        }
+        set
+        {
+            if (_commandCompletedWithError == null)
+                return;
+
+            if (_commandCompletedWithError.Task.IsCompleted)
+                return;
+
+            _commandCompletedWithError.SetResult(value);
+        }
+    }
+
+    public void ContinueCommandExecution() => _commandContinuationEvent?.Set();
+
+    private void WaitForCommandContinuation() => _commandContinuationEvent?.WaitOne();
+
+    internal void SetParsedAndWait()
+    {
+        if (_isCommandParsed == null)
+            return;
+
+        IsParsed = true;
+        WaitForCommandContinuation();
     }
 }

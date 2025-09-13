@@ -1,7 +1,15 @@
+using Haraltd.Stack.Base.Sockets;
+using InTheHand.Net;
+
 namespace Haraltd.Stack.Obex.Packet;
 
-public record ObexService(Guid Id, byte[] Value)
+public abstract record ObexService
 {
-    public Guid ServiceGuid => Id;
-    public byte[] ServiceUuid => Value ?? throw new ArgumentNullException(nameof(Value));
+    public abstract Guid ServiceGuid { get; }
+
+    public abstract byte[] ServiceUuidBytes { get; }
+
+    public abstract SocketOptions GetServiceSocketOptions(BluetoothAddress address);
+
+    public abstract SocketListenerOptions GetServiceSocketListenerOptions();
 }

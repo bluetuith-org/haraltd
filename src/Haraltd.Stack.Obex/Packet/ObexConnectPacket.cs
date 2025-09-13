@@ -28,7 +28,7 @@ public class ObexConnectPacket : ObexPacket
     public ObexConnectPacket(bool disconnect, ObexService service)
         : base(new ObexOpcode(disconnect ? ObexOperation.Disconnect : ObexOperation.Connect, true))
     {
-        Headers[HeaderId.Target] = new ObexHeader(HeaderId.Target, service.ServiceUuid);
+        Headers[HeaderId.Target] = new ObexHeader(HeaderId.Target, service.ServiceUuidBytes);
     }
 
     public bool Disconnect { get; set; } = false;

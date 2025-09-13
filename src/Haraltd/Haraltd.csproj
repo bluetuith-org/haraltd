@@ -36,7 +36,19 @@
     <ProjectReference Include="..\Haraltd.Stack.Base\Haraltd.Stack.Base.csproj" />
     <ProjectReference
       Include="..\Haraltd.Stack.Microsoft\Haraltd.Stack.Microsoft.csproj"
-      Condition=" '$(OS)' == 'Windows_NT' "
+      Condition=" '$(IsWindows)' == 'true' "
+    />
+    <ProjectReference
+      Include="..\Haraltd.Stack.Platform.MacOS\Haraltd.Stack.Platform.MacOS.csproj"
+      Condition=" '$(IsOSX)' == 'true' "
     />
   </ItemGroup>
+  <Import
+    Project="..\Haraltd.Stack.Microsoft\MicrosoftStack.props"
+    Condition=" '$(IsWindows)' == 'true' "
+  />
+  <Import
+    Project="..\Haraltd.Stack.Platform.MacOS\MacOSApp.props"
+    Condition=" '$(IsOSX)' == 'true' "
+  />
 </Project>

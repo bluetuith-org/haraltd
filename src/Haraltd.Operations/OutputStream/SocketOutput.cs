@@ -35,9 +35,10 @@ internal sealed class SocketOutput : OutputBase
         if (File.Exists(socketPath))
             File.Delete(socketPath);
 
-        _socketServer = new SocketServer(socketPath);
-        _socketServer.Start();
+        var server = new SocketServer(socketPath);
+        server.Start();
 
+        _socketServer = server;
         _socketPath = socketPath;
         _operationToken = token;
     }
@@ -84,13 +85,11 @@ internal sealed class SocketOutput : OutputBase
 
 #nullable disable
 
-    internal override void WaitForClose()
+    internal override void Close()
     {
-        Console.WriteLine(
-            $"[+] Server started at '{Path.GetFileName(_socketPath)}' ({_socketServer.Id})"
-        );
+        if (_socketServer == null)
+            return;
 
-        _operationToken.Wait();
         _socketServer.Stop();
 
         Console.WriteLine("[+] Server stopped");

@@ -10,7 +10,6 @@ public static class CommandExecutor
         var token = OperationManager.GenerateToken(0, Guid.NewGuid());
 
         OperationManager.ExecuteHandler(token, args);
-        OperationManager.WaitForExtendedOperations();
 
         return Errors.ErrorNone;
     }

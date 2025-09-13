@@ -6,16 +6,20 @@ namespace Haraltd;
 public class PlatformSpecificHost : IOperationHost
 {
     public IBluetoothStack Stack { get; } =
-#if WINDOWS10_0_19041_0_OR_GREATER
+#if WINDOWS
         new Haraltd.Stack.Microsoft.WindowsStack();
+#elif OSX
+        new Haraltd.Stack.Platform.MacOS.MacOsStack();
 #else
-        null;
+        throw new PlatformNotSupportedException();
 #endif
 
     public IServer Server { get; } =
-#if WINDOWS10_0_19041_0_OR_GREATER
-    new Haraltd.Stack.Microsoft.Server.WindowsServer();
+#if WINDOWS
+        new Haraltd.Stack.Microsoft.Server.WindowsServer();
+#elif OSX
+        new Haraltd.Stack.Platform.MacOS.Server.MacOsServer();
 #else
-        null;
+        throw new PlatformNotSupportedException();
 #endif
 }

@@ -44,7 +44,7 @@ public record ErrorCode
     }
 }
 
-public record ErrorEvent : IErrorEvent
+public record ErrorEvent(ErrorCode Code, string Description) : IErrorEvent
 {
     protected static readonly JsonEncodedText ErrorText = JsonEncodedText.Encode("error");
     protected static readonly JsonEncodedText CodeText = JsonEncodedText.Encode("code");
@@ -52,16 +52,6 @@ public record ErrorEvent : IErrorEvent
     protected static readonly JsonEncodedText DescriptionText = JsonEncodedText.Encode(
         "description"
     );
-
-    public ErrorEvent(ErrorCode Code, string Description)
-    {
-        this.Code = Code;
-        this.Description = Description;
-    }
-
-    public ErrorCode Code { get; }
-
-    public string Description { get; }
 
     public EventType Event => EventTypes.EventError;
 
@@ -71,7 +61,7 @@ public record ErrorEvent : IErrorEvent
         set => throw new InvalidDataException();
     }
 
-    public string ToConsoleString()
+    public virtual string ToConsoleString()
     {
         if (Code == Errors.ErrorNone.Code)
             return "";
@@ -82,7 +72,7 @@ public record ErrorEvent : IErrorEvent
         return stringBuilder.ToString();
     }
 
-    public void WriteJsonToStream(Utf8JsonWriter writer)
+    public virtual void WriteJsonToStream(Utf8JsonWriter writer)
     {
         writer.WriteStartObject(ErrorText);
 
@@ -93,16 +83,13 @@ public record ErrorEvent : IErrorEvent
     }
 }
 
-public record ErrorData : ErrorEvent, IError
+public record ErrorData(ErrorCode Code, string Description) : ErrorEvent(Code, Description)
 {
     private static readonly JsonEncodedText MetadataText = JsonEncodedText.Encode("metadata");
 
-    public ErrorData(ErrorCode Code, string Description)
-        : base(Code, Description) { }
-
     public Dictionary<string, object> Metadata { get; set; }
 
-    public new string ToConsoleString()
+    public override string ToConsoleString()
     {
         if (Code == Errors.ErrorNone.Code)
             return "";
@@ -117,7 +104,7 @@ public record ErrorData : ErrorEvent, IError
         return stringBuilder.ToString();
     }
 
-    public new void WriteJsonToStream(Utf8JsonWriter writer)
+    public override void WriteJsonToStream(Utf8JsonWriter writer)
     {
         if (Code == Errors.ErrorNone.Code)
             return;
@@ -141,25 +128,17 @@ public partial class Errors
 {
     public static readonly ErrorData ErrorNone = new(ErrorCode.ErrorNone, "");
 
-    public static readonly ErrorData ErrorUnexpected = new(
-        ErrorCode.ErrorUnexpected,
-        "An unexpected error occurred"
-    );
+    public static ErrorData ErrorUnexpected =>
+        new(ErrorCode.ErrorUnexpected, "An unexpected error occurred");
 
-    public static readonly ErrorData ErrorOperationCancelled = new(
-        ErrorCode.ErrorOperationCancelled,
-        "An operation was cancelled"
-    );
+    public static ErrorData ErrorOperationCancelled =>
+        new(ErrorCode.ErrorOperationCancelled, "An operation was cancelled");
 
-    public static readonly ErrorData ErrorOperationInProgress = new(
-        ErrorCode.ErrorOperationInProgress,
-        "The specified operation is in progress"
-    );
+    public static ErrorData ErrorOperationInProgress =>
+        new(ErrorCode.ErrorOperationInProgress, "The specified operation is in progress");
 
-    public static readonly ErrorData ErrorUnsupported = new(
-        ErrorCode.ErrorUnsupported,
-        "This operation is unsupported"
-    );
+    public static ErrorData ErrorUnsupported =>
+        new(ErrorCode.ErrorUnsupported, "This operation is unsupported");
 }
 
 public static class ErrorExtensions
@@ -167,8 +146,7 @@ public static class ErrorExtensions
     public static ErrorData AddMetadata(this ErrorData e, string key, object value)
     {
         e.Metadata ??= [];
-        if (!e.Metadata.TryAdd(key, value))
-            e.Metadata[key] = value;
+        e.Metadata[key] = value;
 
         return e;
     }

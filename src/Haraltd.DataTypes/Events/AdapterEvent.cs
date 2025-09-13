@@ -30,6 +30,8 @@ public interface IAdapterEvent
     public bool? OptionDiscovering { get; set; }
 
     public void PrintEventProperties(ref StringBuilder stringBuilder);
+
+    public void ResetProperties();
 }
 
 public abstract record AdapterEventBaseModel : IAdapterEvent
@@ -48,6 +50,15 @@ public abstract record AdapterEventBaseModel : IAdapterEvent
         OptionDiscoverable.AppendString("Discoverable", ref stringBuilder);
         OptionPairable.AppendString("Pairable", ref stringBuilder);
         OptionDiscovering.AppendString("Discovering", ref stringBuilder);
+    }
+
+    public void ResetProperties()
+    {
+        Address = null;
+        OptionPowered = null;
+        OptionDiscoverable = null;
+        OptionPairable = null;
+        OptionDiscovering = null;
     }
 }
 

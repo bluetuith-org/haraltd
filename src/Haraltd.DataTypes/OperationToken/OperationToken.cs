@@ -65,6 +65,11 @@ public readonly struct OperationToken : IEquatable<OperationToken>
         );
     }
 
+    public void RegisterOnRelease(Action releaseFunc)
+    {
+        _reftoken.Value.RegisterOnRelease(releaseFunc);
+    }
+
     public void Release()
     {
         if (IsReleased())
@@ -176,6 +181,11 @@ internal class OperationTokenRef : IDisposable
         }
     }
 
+    public void RegisterOnRelease(Action releaseFunc)
+    {
+        _cancelTokenSource?.Token.Register(releaseFunc);
+    }
+
     public void Dispose()
     {
         if (_isDisposed)
@@ -194,7 +204,10 @@ internal class OperationTokenRef : IDisposable
             _cancelTokenSource?.Cancel();
             _cancelTokenSource?.Dispose();
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
     }
 
     internal bool Wait()

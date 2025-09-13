@@ -21,24 +21,39 @@ public class Adapter
     /// <summary>List all available Bluetooth adapters.</summary>
     public int List(ConsoleAppContext context)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
+
+        var token = parserContext!.Token;
         var (adapters, error) = OperationHost.Instance.Stack.GetAdapters(token);
 
-        return Output.Result(adapters.ToResult("Adapters", "adapters"), error, token);
+        return Output.ResultWithContext(
+            adapters.ToResult("Adapters", "adapters"),
+            error,
+            token,
+            parserContext
+        );
     }
 
     /// <summary>Get information about the Bluetooth adapter.</summary>
     /// <param name="address">-a, The address of the Bluetooth adapter.</param>
     public async Task<int> Properties(ConsoleAppContext context, string address)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
+
+        var token = parserContext!.Token;
         var props = new AdapterModel();
 
-        var (adapter, error) = await OperationHost.Instance.Stack.GetAdapterAsync(address, token);
-        if (adapter != null)
-            (props, error) = adapter.Properties();
+        using var adapterResult = await OperationHost.Instance.Stack.GetAdapterAsync(
+            address,
+            token
+        );
+        var error = adapterResult.Error;
+        if (adapterResult.Adapter != null)
+            (props, error) = adapterResult.Adapter.Properties();
 
-        return Output.Result(props, error, token);
+        return Output.ResultWithContext(props, error, token, parserContext);
     }
 
     /// <summary>Get the list of paired devices.</summary>
@@ -46,13 +61,20 @@ public class Adapter
     public async Task<int> GetPairedDevices(ConsoleAppContext context, string address)
     {
         GenericResult<List<DeviceModel>> devices = null;
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (adapter, error) = await OperationHost.Instance.Stack.GetAdapterAsync(address, token);
-        if (adapter != null)
-            (devices, error) = adapter.GetPairedDevices();
+        var token = parserContext!.Token;
 
-        return Output.Result(devices, error, token);
+        using var adapterResult = await OperationHost.Instance.Stack.GetAdapterAsync(
+            address,
+            token
+        );
+        var error = adapterResult.Error;
+        if (adapterResult.Adapter != null)
+            (devices, error) = adapterResult.Adapter.GetPairedDevices();
+
+        return Output.ResultWithContext(devices, error, token, parserContext);
     }
 
     /// <summary>Sets the power state of the adapter.</summary>
@@ -64,13 +86,20 @@ public class Adapter
         string address
     )
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (adapter, error) = await OperationHost.Instance.Stack.GetAdapterAsync(address, token);
-        if (adapter != null)
-            error = adapter.SetPoweredState(state == ToggleState.On);
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var adapterResult = await OperationHost.Instance.Stack.GetAdapterAsync(
+            address,
+            token
+        );
+        var error = adapterResult.Error;
+        if (adapterResult.Adapter != null)
+            error = adapterResult.Adapter.SetPoweredState(state == ToggleState.On);
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 
     /// <summary>Sets the pairable state of the adapter.</summary>
@@ -82,13 +111,20 @@ public class Adapter
         string address
     )
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (adapter, error) = await OperationHost.Instance.Stack.GetAdapterAsync(address, token);
-        if (adapter != null)
-            error = adapter.SetPairableState(state == ToggleState.On);
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var adapterResult = await OperationHost.Instance.Stack.GetAdapterAsync(
+            address,
+            token
+        );
+        var error = adapterResult.Error;
+        if (adapterResult.Adapter != null)
+            error = adapterResult.Adapter.SetPairableState(state == ToggleState.On);
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 
     /// <summary>Sets the discoverable state of the adapter.</summary>
@@ -100,13 +136,20 @@ public class Adapter
         string address
     )
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (adapter, error) = await OperationHost.Instance.Stack.GetAdapterAsync(address, token);
-        if (adapter != null)
-            error = adapter.SetDiscoverableState(state == ToggleState.On);
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var adapterResult = await OperationHost.Instance.Stack.GetAdapterAsync(
+            address,
+            token
+        );
+        var error = adapterResult.Error;
+        if (adapterResult.Adapter != null)
+            error = adapterResult.Adapter.SetDiscoverableState(state == ToggleState.On);
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 }
 
@@ -119,13 +162,20 @@ public class Discovery
     /// <param name="timeout">-t, A value in seconds which determines when the device discovery will finish.</param>
     public async Task<int> Start(ConsoleAppContext context, string address, int timeout = 0)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (adapter, error) = await OperationHost.Instance.Stack.GetAdapterAsync(address, token);
-        if (adapter != null)
-            error = adapter.StartDeviceDiscovery(timeout);
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var adapterResult = await OperationHost.Instance.Stack.GetAdapterAsync(
+            address,
+            token
+        );
+        var error = adapterResult.Error;
+        if (adapterResult.Adapter != null)
+            error = adapterResult.Adapter.StartDeviceDiscovery(timeout);
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 
     /// <summary>Stop a device discovery (RPC only).</summary>
@@ -133,12 +183,19 @@ public class Discovery
     [Hidden]
     public async Task<int> Stop(ConsoleAppContext context, string address)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (adapter, error) = await OperationHost.Instance.Stack.GetAdapterAsync(address, token);
-        if (adapter != null)
-            error = adapter.StopDeviceDiscovery();
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var adapterResult = await OperationHost.Instance.Stack.GetAdapterAsync(
+            address,
+            token
+        );
+        var error = adapterResult.Error;
+        if (adapterResult.Adapter != null)
+            error = adapterResult.Adapter.StopDeviceDiscovery();
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 }

@@ -9,10 +9,6 @@ namespace Haraltd.DataTypes.Models;
 
 public interface IDevice : IDeviceEvent
 {
-    [JsonPropertyName("name")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string Name { get; set; }
-
     [JsonPropertyName("alias")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string Alias { get; set; }
@@ -28,7 +24,6 @@ public interface IDevice : IDeviceEvent
 
 public abstract record DeviceBaseModel : DeviceEventBaseModel, IDevice
 {
-    public string Name { get; set; } = "";
     public string Alias { get; set; } = "";
     public uint Class { get; set; } = 0;
     public bool LegacyPairing { get; set; } = false;
@@ -36,11 +31,16 @@ public abstract record DeviceBaseModel : DeviceEventBaseModel, IDevice
 
 public record DeviceModel : DeviceBaseModel, IResult
 {
+    public DeviceModel() { }
+
+    public DeviceModel(string name)
+    {
+        Name = name;
+    }
+
     public string ToConsoleString()
     {
         StringBuilder stringBuilder = new();
-        stringBuilder.AppendLine($"Name: {Name}");
-
         AppendEventProperties(ref stringBuilder);
 
         return stringBuilder.ToString();

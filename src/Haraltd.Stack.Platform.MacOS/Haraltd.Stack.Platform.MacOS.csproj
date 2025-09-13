@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Haraltd.Stack.Platform.MacOS</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="IOBluetooth\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Remove="IOBluetooth\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ImageAsset Remove="IOBluetooth\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterfaceDefinition Remove="IOBluetooth\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="IOBluetooth\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Haraltd.Stack.Base\Haraltd.Stack.Base.csproj" />
+    <ProjectReference Include="..\Haraltd.Stack.Obex\Haraltd.Stack.Obex.csproj" />
+    <ProjectReference Include="IOBluetooth\IOBluetooth.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="DotNext.IO" Version="5.26.1" />
+    <PackageReference Include="InTheHand.Net.Bluetooth" Version="4.2.2" />
+    <PackageReference Update="CSharpier.MsBuild" Version="1.2.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

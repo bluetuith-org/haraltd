@@ -1,42 +1,43 @@
 <Project>
     <PropertyGroup>
-        <RootNamespace>Haraltd</RootNamespace>
         <LangVersion>13</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
         <NullableReferenceTypes>false</NullableReferenceTypes>
-        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
         <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-        <ServerGarbageCollection>true</ServerGarbageCollection>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <DisableRuntimeMarshalling>true</DisableRuntimeMarshalling>
         <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
-        <TrimmerSingleWarn>false</TrimmerSingleWarn>
-        <NoWarn>$(NoWarn);CS0028;CS0618;CS8500;CS0436;JS01;JS02;JS03;JN01;JN02;JN03;IL2026,IL3050</NoWarn>
+        
+        <IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">true</IsWindows>
+        <IsOSX Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</IsOSX>
     </PropertyGroup>
-    <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
+
+    <PropertyGroup Condition=" '$(IsWindows)' == 'true' ">
+        <DefineConstants>Windows</DefineConstants>
         <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     </PropertyGroup>
-    <PropertyGroup Condition=" '$(OS)' != 'Windows_NT' ">
-        <TargetFramework>net10.0</TargetFramework>
+    <PropertyGroup Condition=" '$(IsOSX)' == 'true' ">
+        <DefineConstants>OSX</DefineConstants>
+        <TargetFramework>net10.0-macos</TargetFramework>
+        <RuntimeIdentifiers>osx-arm64</RuntimeIdentifiers>
     </PropertyGroup>
+    
     <PropertyGroup>
         <PublishAot>True</PublishAot>
         <SelfContained>true</SelfContained>
         <InvariantGlobalization>true</InvariantGlobalization>
-        <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+        <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
         <DebugType>none</DebugType>
         <DebugSymbols>False</DebugSymbols>
         <CSharpier_Check>false</CSharpier_Check>
     </PropertyGroup>
+    
     <ItemGroup>
         <PackageReference Include="CSharpier.MsBuild" Version="1.0.2">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
     </ItemGroup>
-    <Import
-            Project="Haraltd.Stack.Microsoft\MicrosoftStack.props"
-            Condition=" '$(OS)' == 'Windows_NT' "
-    />
 </Project>

@@ -6,6 +6,31 @@ using InTheHand.Net;
 
 namespace Haraltd.Stack.Base;
 
+public readonly struct AdapterControllerResult(IAdapterController adapter, ErrorData error)
+    : IDisposable
+{
+    public IAdapterController Adapter => adapter;
+
+    public ErrorData Error => error;
+
+    public void Dispose()
+    {
+        Adapter?.Dispose();
+    }
+}
+
+public readonly struct DeviceControllerResult(IDeviceController device, ErrorData error)
+    : IDisposable
+{
+    public IDeviceController Device => device;
+    public ErrorData Error => error;
+
+    public void Dispose()
+    {
+        device?.Dispose();
+    }
+}
+
 public interface IBluetoothStack
 {
     public ErrorData StartMonitors(OperationToken token);
@@ -14,49 +39,44 @@ public interface IBluetoothStack
     public Features GetFeatureFlags();
     public PlatformInfo GetPlatformInfo();
 
-    public (ISocket, ErrorData) CreateSocket(BluetoothAddress address, Guid serviceUuid);
-    public (ISocketListener, ErrorData) CreateSocketListener(Guid serviceUuid);
+    public (ISocket, ErrorData) CreateSocket(SocketOptions options);
+    public (ISocketListener, ErrorData) CreateSocketListener(SocketListenerOptions options);
 
     public (List<AdapterModel>, ErrorData) GetAdapters(OperationToken token);
 
-    public ValueTask<(IAdapterController, ErrorData)> GetAdapterAsync(
+    public ValueTask<AdapterControllerResult> GetAdapterAsync(
         BluetoothAddress address,
         OperationToken token
     );
-    public async ValueTask<(IAdapterController, ErrorData)> GetAdapterAsync(
+    public async ValueTask<AdapterControllerResult> GetAdapterAsync(
         string address,
         OperationToken token
     ) =>
         GetBluetoothAddress(address, out var addr, out var error)
             ? await GetAdapterAsync(addr, token)
-            : (null, error);
+            : new AdapterControllerResult(null, error);
 
-    public ValueTask<(IDeviceController, ErrorData)> GetDeviceAsync(
+    public ValueTask<DeviceControllerResult> GetDeviceAsync(
         BluetoothAddress address,
         OperationToken token
     );
-    public async ValueTask<(IDeviceController, ErrorData)> GetDeviceAsync(
+
+    public async ValueTask<DeviceControllerResult> GetDeviceAsync(
         string address,
         OperationToken token
     ) =>
         GetBluetoothAddress(address, out var addr, out var error)
             ? await GetDeviceAsync(addr, token)
-            : (null, error);
+            : new DeviceControllerResult(null, error);
 
     public bool GetBluetoothAddress(string address, out BluetoothAddress addr, out ErrorData error)
     {
-        addr = null;
-        error = Errors.ErrorNone;
+        error = null;
 
-        try
-        {
-            addr = BluetoothAddress.Parse(address);
-        }
-        catch (Exception ex)
-        {
-            error = Errors.ErrorUnexpected.AddMetadata("exception", ex.Message);
-        }
+        var parsed = BluetoothAddress.TryParse(address, out addr);
+        if (!parsed)
+            error = Errors.ErrorUnexpected.AddMetadata("exception", "Address is not valid");
 
-        return error == Errors.ErrorNone;
+        return parsed;
     }
 }

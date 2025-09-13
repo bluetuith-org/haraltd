@@ -1,5 +1,6 @@
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.Models;
+using Haraltd.Stack.Base.Profiles.Opp;
 using InTheHand.Net;
 
 namespace Haraltd.Stack.Base;
@@ -19,6 +20,8 @@ public interface IAdapterController : IDisposable
 
     public ErrorData StartDeviceDiscovery(int timeout = 0);
     public ErrorData StopDeviceDiscovery();
+
+    public AdapterOppManager GetOppManager();
 
     public ValueTask<ErrorData> DisconnectDeviceAsync(BluetoothAddress address);
     public Task<ErrorData> RemoveDeviceAsync(BluetoothAddress address);

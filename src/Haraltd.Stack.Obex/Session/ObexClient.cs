@@ -16,6 +16,7 @@ public class ObexClient<T>(ObexService service, T properties) : IObexSession
 {
     protected ISocket Socket;
     protected CancellationTokenSource Cts;
+
     protected T Properties => properties;
 
     public BluetoothAddress Address { get; set; }
@@ -26,7 +27,7 @@ public class ObexClient<T>(ObexService service, T properties) : IObexSession
 
     public virtual async ValueTask<ErrorData> StartAsync()
     {
-        (Socket, var error) = Stack.CreateSocket(Address, service.ServiceGuid);
+        (Socket, var error) = Stack.CreateSocket(service.GetServiceSocketOptions(Address));
 
         try
         {
@@ -56,7 +57,6 @@ public class ObexClient<T>(ObexService service, T properties) : IObexSession
     public virtual async ValueTask<ErrorData> CancelTransferAsync()
     {
         await Cts.CancelAsync();
-        Cts = Token.LinkedCancelTokenSource;
 
         return Errors.ErrorNone;
     }

@@ -7,6 +7,11 @@ public interface ISocket : IDisposable
 {
     public BluetoothAddress Address { get; }
 
+    public int Mtu { get; }
+
+    public event Action<bool> ConnectionStatusEvent;
+    public bool CanSubscribeToEvents { get; }
+
     public ISocketStreamReader Reader { get; }
     public ISocketStreamWriter Writer { get; }
 

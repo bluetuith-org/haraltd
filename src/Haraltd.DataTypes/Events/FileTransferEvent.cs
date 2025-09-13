@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Haraltd.DataTypes.Generic;
+using Haraltd.DataTypes.Models;
 using Haraltd.DataTypes.Serializer;
 using static Haraltd.DataTypes.Events.IFileTransferEvent;
 using static Haraltd.DataTypes.Generic.IEvent;
@@ -78,9 +79,10 @@ public abstract record FileTransferEventBaseModel : IFileTransferEvent
 
     public string SessionId { get; set; }
 
-    protected FileTransferEventBaseModel()
+    protected FileTransferEventBaseModel(bool mustGenerateIds)
     {
-        RegenerateIds();
+        if (mustGenerateIds)
+            RegenerateIds();
     }
 
     public void RegenerateIds()
@@ -102,6 +104,9 @@ public record FileTransferEvent : FileTransferEventBaseModel, IEvent
 
     public EventAction Action { get; set; } = EventAction.Added;
 
+    protected FileTransferEvent(bool mustGenerateIds)
+        : base(mustGenerateIds) { }
+
     public virtual string ToConsoleString()
     {
         StringBuilder stringBuilder = new();
@@ -119,12 +124,33 @@ public record FileTransferEvent : FileTransferEventBaseModel, IEvent
     }
 }
 
-public record FileTransferEventCombined(bool Receiving) : FileTransferEvent, IFileTransfer
+public record FileTransferEventCombined : FileTransferEvent, IFileTransfer
 {
     public string Name { get; set; }
 
     public string FileName { get; set; }
-    public bool Receiving { get; set; } = Receiving;
+    public bool Receiving { get; set; }
+
+    public FileTransferEventCombined(bool Receiving)
+        : base(true)
+    {
+        this.Receiving = Receiving;
+    }
+
+    public FileTransferEventCombined(bool Receiving, FileTransferModel dataToMerge)
+        : base(false)
+    {
+        this.Receiving = Receiving;
+
+        Name = dataToMerge.Name;
+        FileName = dataToMerge.FileName;
+        Address = dataToMerge.Address;
+        FileSize = dataToMerge.FileSize;
+        Status = dataToMerge.Status;
+
+        SessionId = dataToMerge.SessionId;
+        TransferId = dataToMerge.TransferId;
+    }
 
     public override void WriteJsonToStream(Utf8JsonWriter writer)
     {

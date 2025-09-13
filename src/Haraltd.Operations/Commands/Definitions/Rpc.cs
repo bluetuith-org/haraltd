@@ -17,10 +17,14 @@ public class Rpc
     [Hidden]
     public int PlatformInfo(ConsoleAppContext context)
     {
-        return Output.Result(
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
+
+        return Output.ResultWithContext(
             OperationHost.Instance.Stack.GetPlatformInfo(),
             Errors.ErrorNone,
-            (OperationToken)context.State
+            parserContext!.Token,
+            parserContext
         );
     }
 
@@ -28,19 +32,33 @@ public class Rpc
     [Hidden]
     public int FeatureFlags(ConsoleAppContext context)
     {
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
+
         var features = OperationHost.Instance.Stack.GetFeatureFlags();
 
-        return Output.Result(features, Errors.ErrorNone, (OperationToken)context.State);
+        return Output.ResultWithContext(
+            features,
+            Errors.ErrorNone,
+            parserContext!.Token,
+            parserContext
+        );
     }
 
     /// <summary>Show the current version information of the RPC server.</summary>
     [Hidden]
     public int Version(ConsoleAppContext context)
     {
-        return Output.Result(
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
+
+        var token = parserContext!.Token;
+
+        return Output.ResultWithContext(
             ConsoleApp.Version.ToResult("Version", "version"),
             Errors.ErrorNone,
-            (OperationToken)context.State
+            token,
+            parserContext
         );
     }
 
@@ -50,22 +68,22 @@ public class Rpc
     [Hidden]
     public int Auth(ConsoleAppContext context, ushort authenticationId, string response)
     {
-        if (
-            !Output.ReplyToAuthenticationRequest(
-                (OperationToken)context.State,
-                authenticationId,
-                response
-            )
-        )
-            return Output.Error(
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
+
+        var token = parserContext!.Token;
+
+        if (!Output.ReplyToAuthenticationRequest(token, authenticationId, response))
+            return Output.ErrorWithContext(
                 Errors.ErrorOperationCancelled.AddMetadata(
                     "exception",
                     "No authentication ID or registered agent found: " + authenticationId
                 ),
-                (OperationToken)context.State
+                token,
+                parserContext
             );
 
-        return Output.Error(Errors.ErrorNone, (OperationToken)context.State);
+        return Output.ErrorWithContext(Errors.ErrorNone, token, parserContext);
     }
 }
 
@@ -79,11 +97,11 @@ public class Agent
     [Hidden]
     public int Register(ConsoleAppContext context, AuthenticationManager.AuthAgentType agentType)
     {
-        var err = AuthenticationManager.RegisterAuthAgent(
-            agentType,
-            ((OperationToken)context.State).ClientId
-        );
-        return Output.Error(err, (OperationToken)context.State);
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
+
+        var err = AuthenticationManager.RegisterAuthAgent(agentType, parserContext!.Token.ClientId);
+        return Output.ErrorWithContext(err, parserContext!.Token, parserContext);
     }
 
     /// <summary>Unregister a registered agent for pairing or file-transfer related authentication events.</summary>
@@ -91,10 +109,13 @@ public class Agent
     [Hidden]
     public int Unregister(ConsoleAppContext context, AuthenticationManager.AuthAgentType agentType)
     {
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
+
         var err = AuthenticationManager.UnregisterAuthAgent(
             agentType,
-            ((OperationToken)context.State).ClientId
+            parserContext!.Token.ClientId
         );
-        return Output.Error(err, (OperationToken)context.State);
+        return Output.ErrorWithContext(err, parserContext!.Token, parserContext);
     }
 }

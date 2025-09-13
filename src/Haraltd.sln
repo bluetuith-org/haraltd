@@ -15,6 +15,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haraltd.Stack.Base", "Haral
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haraltd.Stack.Obex", "Haraltd.Stack.Obex\Haraltd.Stack.Obex.csproj", "{7BD286DB-9D82-4205-B4DB-FFE54F8AA1A5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haraltd.Stack.Platform.MacOS", "Haraltd.Stack.Platform.MacOS\Haraltd.Stack.Platform.MacOS.csproj", "{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IOBluetooth", "Haraltd.Stack.Platform.MacOS\IOBluetooth\IOBluetooth.csproj", "{5B8FEE8F-931B-42D6-83DA-09BA1A279313}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -123,6 +127,38 @@ Global
 		{7BD286DB-9D82-4205-B4DB-FFE54F8AA1A5}.Release|x64.Build.0 = Release|Any CPU
 		{7BD286DB-9D82-4205-B4DB-FFE54F8AA1A5}.Release|x86.ActiveCfg = Release|Any CPU
 		{7BD286DB-9D82-4205-B4DB-FFE54F8AA1A5}.Release|x86.Build.0 = Release|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Debug|x64.Build.0 = Debug|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Debug|x86.Build.0 = Debug|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Release|ARM64.Build.0 = Release|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Release|x64.ActiveCfg = Release|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Release|x64.Build.0 = Release|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Release|x86.ActiveCfg = Release|Any CPU
+		{7FC612A2-BE44-431E-8BC0-E3C8A7ACDBAD}.Release|x86.Build.0 = Release|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Debug|x64.Build.0 = Debug|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Debug|x86.Build.0 = Debug|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Release|ARM64.Build.0 = Release|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Release|x64.ActiveCfg = Release|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Release|x64.Build.0 = Release|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Release|x86.ActiveCfg = Release|Any CPU
+		{5B8FEE8F-931B-42D6-83DA-09BA1A279313}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

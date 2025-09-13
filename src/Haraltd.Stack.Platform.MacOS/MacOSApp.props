@@ -1,0 +1,28 @@
+<Project>
+  <PropertyGroup>
+    <GenerateApplicationManifest>true</GenerateApplicationManifest>
+    <ApplicationVersion>$(AssemblyVersion)</ApplicationVersion>
+    <ApplicationId>com.haraltd.daemon</ApplicationId>
+    <ApplicationTitle>Haraltd</ApplicationTitle>
+    <AppIcon>AppIcon</AppIcon>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DebugType>none</DebugType>
+    <CreatePackage>false</CreatePackage>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <EnableCodeSigning>true</EnableCodeSigning>
+    <CodeSigningKey>-</CodeSigningKey>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <EnableCodeSigning>true</EnableCodeSigning>
+    <CodeSigningKey>Mac Developer</CodeSigningKey>
+  </PropertyGroup>
+  <ItemGroup>
+    <PartialAppManifest Include="../Haraltd.Stack.Platform.MacOS/PartialManifest.plist" />
+  </ItemGroup>
+  <ItemGroup>
+    <LinkerArgument Include="-framework" />
+    <LinkerArgument Include="IOBluetooth" />
+  </ItemGroup>
+</Project>

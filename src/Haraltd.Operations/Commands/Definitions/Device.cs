@@ -17,39 +17,54 @@ public class Device
     public async Task<int> Properties(ConsoleAppContext context, string address)
     {
         DeviceModel props = null;
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            (props, error) = device.Properties();
+        var token = parserContext!.Token;
 
-        return Output.Result(props, error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+            (props, error) = deviceResult.Device.Properties();
+
+        return Output.ResultWithContext(props, error, token, parserContext);
     }
 
     /// <summary>Disconnect from a Bluetooth device.</summary>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> Disconnect(ConsoleAppContext context, string address)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            error = await device.DisconnectAsync();
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+            error = await deviceResult.Device.DisconnectAsync();
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 
     /// <summary>Remove a Bluetooth device.</summary>
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> Remove(ConsoleAppContext context, string address)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            error = await device.RemoveAsync();
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+            error = await deviceResult.Device.RemoveAsync();
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 }
 
@@ -65,13 +80,18 @@ public class Pairing
     [Command("")]
     public async Task<int> Pair(ConsoleAppContext context, string address, int timeout = 10)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            error = await device.PairAsync(timeout);
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+            error = await deviceResult.Device.PairAsync(timeout);
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 
     /// <summary>Cancel pairing with a Bluetooth device.</summary>
@@ -79,13 +99,18 @@ public class Pairing
     [Hidden]
     public async Task<int> Cancel(ConsoleAppContext context, string address)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            error = device.CancelPairing();
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+            error = deviceResult.Device.CancelPairing();
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 }
 
@@ -100,13 +125,18 @@ public class Connection
     [Command("")]
     public async Task<int> Connect(ConsoleAppContext context, string address)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            error = await device.ConnectAsync();
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+            error = await deviceResult.Device.ConnectAsync();
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 
     /// <summary>Connect to a device using a specified profile</summary>
@@ -114,13 +144,18 @@ public class Connection
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> Profile(ConsoleAppContext context, string address, Guid uuid)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            error = await device.ConnectProfileAsync(uuid);
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+            error = await deviceResult.Device.ConnectProfileAsync(uuid);
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 }
 
@@ -131,13 +166,18 @@ public class A2dp
     /// <param name="address">-a, The address of the Bluetooth device.</param>
     public async Task<int> StartSession(ConsoleAppContext context, string address)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            error = await device.StartAudioSessionAsync();
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+            error = await deviceResult.Device.StartAudioSessionAsync();
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 }
 
@@ -150,13 +190,20 @@ public class Opp
     [Hidden]
     public async Task<int> StartSession(ConsoleAppContext context, string address)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            error = await device.StartFileTransferSessionAsync();
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+        {
+            error = await deviceResult.Device.GetOppManager().StartFileTransferSessionAsync();
+        }
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 
     /// <summary>Send a file to a device with an open session. (RPC mode only).</summary>
@@ -164,14 +211,21 @@ public class Opp
     [Hidden]
     public async Task<int> SendFile(ConsoleAppContext context, string address, string file)
     {
-        var fileTransferModel = new FileTransferModel();
-        var token = (OperationToken)context.State!;
+        var fileTransferModel = new FileTransferModel { Address = address, FileName = file };
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            (fileTransferModel, error) = device.QueueFileSend(file);
+        var token = parserContext!.Token;
 
-        return Output.Result(fileTransferModel, error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+        {
+            (fileTransferModel, error) = deviceResult.Device.GetOppManager().QueueFileSend(file);
+        }
+
+        return Output.ResultWithContext(fileTransferModel, error, token, parserContext);
     }
 
     /// <summary>Cancel an Object Push file transfer with a device (RPC mode only).</summary>
@@ -179,39 +233,63 @@ public class Opp
     [Hidden]
     public async Task<int> CancelTransfer(ConsoleAppContext context, string address)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            error = await device.CancelFileTransferSessionAsync();
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+        {
+            error = await deviceResult.Device.GetOppManager().CancelFileTransferSessionAsync();
+        }
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 
     /// <summary>Suspend an Object Push file transfer with a device (no-op, RPC mode only).</summary>
     [Hidden]
     public int SuspendTransfer(ConsoleAppContext context)
     {
-        return Output.Error(Errors.ErrorUnsupported, (OperationToken)context.State!);
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
+
+        var token = parserContext!.Token;
+
+        return Output.ErrorWithContext(Errors.ErrorUnsupported, token, parserContext);
     }
 
     /// <summary>Resume an Object Push file transfer with a device (no-op, RPC mode only).</summary>
     [Hidden]
     public int ResumeTransfer(ConsoleAppContext context)
     {
-        return Output.Error(Errors.ErrorUnsupported, (OperationToken)context.State!);
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
+
+        var token = parserContext!.Token;
+
+        return Output.ErrorWithContext(Errors.ErrorUnsupported, token, parserContext);
     }
 
     /// <summary>Stop an Object Push client session with a device (RPC mode only).</summary>
     [Hidden]
     public async Task<int> StopSession(ConsoleAppContext context, string address)
     {
-        var token = (OperationToken)context.State!;
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
-        var (device, error) = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
-        if (device != null)
-            error = await device.StopFileTransferSessionAsync();
+        var token = parserContext!.Token;
 
-        return Output.Error(error, token);
+        using var deviceResult = await OperationHost.Instance.Stack.GetDeviceAsync(address, token);
+        var error = deviceResult.Error;
+
+        if (deviceResult.Device != null)
+        {
+            error = await deviceResult.Device.GetOppManager().StopFileTransferSessionAsync();
+        }
+
+        return Output.ErrorWithContext(error, token, parserContext);
     }
 }

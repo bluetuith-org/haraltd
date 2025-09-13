@@ -1,5 +1,6 @@
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.Models;
+using Haraltd.Stack.Base.Profiles.Opp;
 using InTheHand.Net;
 
 namespace Haraltd.Stack.Base;
@@ -7,8 +8,6 @@ namespace Haraltd.Stack.Base;
 public interface IDeviceController : IDisposable
 {
     public BluetoothAddress Address { get; }
-
-    public event Action<bool> OnDeviceConnectionStateChanged;
 
     public (DeviceModel, ErrorData) Properties();
 
@@ -23,13 +22,7 @@ public interface IDeviceController : IDisposable
 
     public ValueTask<ErrorData> StartAudioSessionAsync();
 
-    public ValueTask<ErrorData> StartFileTransferSessionAsync();
-
-    public (FileTransferModel, ErrorData) QueueFileSend(string filePath);
-
-    public ValueTask<ErrorData> CancelFileTransferSessionAsync();
-
-    public ValueTask<ErrorData> StopFileTransferSessionAsync();
+    public DeviceOppManager GetOppManager();
 
     public ValueTask<ErrorData> RemoveAsync();
 }

@@ -30,7 +30,7 @@ public record OppServerProperties : ObexServerProperties
 }
 
 public class OppServer(OppServerProperties properties)
-    : ObexServer<OppSubServer, OppServerProperties>(OppService.Id, properties);
+    : ObexServer<OppSubServer, OppServerProperties>(OppStatic.Id, properties);
 
 public class OppSubServer : ObexSubServer<OppServerProperties>
 {
@@ -43,8 +43,6 @@ public class OppSubServer : ObexSubServer<OppServerProperties>
 
     private async ValueTask<ErrorData> RunFileTransferAsync()
     {
-        ObexPacket packet = null;
-
         var data = NewData();
         // ReSharper disable once MoveLocalFunctionAfterJumpStatement
         FileTransferEventCombined NewData()
@@ -68,21 +66,30 @@ public class OppSubServer : ObexSubServer<OppServerProperties>
 
         try
         {
-            listenForConnections:
             Cts.Token.ThrowIfCancellationRequested();
 
-            packet = await ObexPacket.ReadFromStream<ObexConnectPacket>(Socket.Reader);
-            switch (packet.Opcode.Operation)
+            ObexPacket connectPacket = await ObexPacket.ReadFromStream<ObexConnectPacket>(
+                Socket.Reader
+            );
+            switch (connectPacket.Opcode.Operation)
             {
                 case ObexOperation.Connect:
-                    packet.Opcode = new ObexOpcode(ObexOperation.Success, true);
-                    packet.WriteToStream(Socket.Writer);
+                    connectPacket.Opcode = new ObexOpcode(ObexOperation.Success, true);
+
+                    connectPacket.WriteToStream(Socket.Writer);
                     await Socket.Writer.StoreAsync();
+
                     break;
+
                 default:
-                    packet = new ObexPacket(new ObexOpcode(ObexOperation.ServiceUnavailable, true));
-                    packet.WriteToStream(Socket.Writer);
-                    goto listenForConnections;
+                    connectPacket = new ObexPacket(
+                        new ObexOpcode(ObexOperation.ServiceUnavailable, true)
+                    );
+
+                    connectPacket.WriteToStream(Socket.Writer);
+                    await Socket.Writer.StoreAsync();
+
+                    throw new ObexException("Unknown OpCode " + connectPacket.Opcode.Operation);
             }
 
             Cts.Token.ThrowIfCancellationRequested();
@@ -96,7 +103,7 @@ public class OppSubServer : ObexSubServer<OppServerProperties>
 
                     MoveFile(src, data.FileName);
                     Output.Event(data, Token);
-                    
+
                     data.Action = IEvent.EventAction.Removed;
                     Output.Event(data with { Action = IEvent.EventAction.Removed }, Token);
 
@@ -109,7 +116,7 @@ public class OppSubServer : ObexSubServer<OppServerProperties>
 
                 var sendPacket = new ObexPacket(new ObexOpcode(ObexOperation.Success, true));
 
-                packet = await ObexPacket.ReadFromStream(Socket.Reader);
+                var packet = await ObexPacket.ReadFromStream(Socket.Reader);
                 switch (packet.Opcode.Operation)
                 {
                     case ObexOperation.Put:
@@ -175,6 +182,7 @@ public class OppSubServer : ObexSubServer<OppServerProperties>
 
                         sendPacket.WriteToStream(Socket.Writer);
                         await Socket.Writer.StoreAsync();
+
                         break;
 
                     default:
@@ -202,13 +210,6 @@ public class OppSubServer : ObexSubServer<OppServerProperties>
 
             try
             {
-                if (Cts.IsCancellationRequested && !exception && packet != null)
-                {
-                    packet.Opcode = new ObexOpcode(ObexOperation.Abort, true);
-                    packet.WriteToStream(Socket.Writer);
-                    await Socket.Writer.StoreAsync();
-                }
-
                 if (file != null)
                 {
                     var name = file.Name;
@@ -217,11 +218,21 @@ public class OppSubServer : ObexSubServer<OppServerProperties>
                     DeleteTempFile(name);
                 }
 
-                Dispose();
+                if (Cts.IsCancellationRequested && !aborted && !disconnected)
+                {
+                    var packet = new ObexPacket(new ObexOpcode(ObexOperation.Abort, true));
+                    packet.WriteToStream(Socket.Writer);
+
+                    await Socket.Writer.StoreAsync();
+                }
             }
             catch
             {
                 // ignore
+            }
+            finally
+            {
+                Dispose();
             }
         }
 
@@ -250,11 +261,10 @@ public class OppSubServer : ObexSubServer<OppServerProperties>
         bool isFirstPut
     )
     {
-        HeaderId headerId;
         var actualFileName = "";
         var fileSize = 0;
 
-        headerId = packet.Opcode.IsFinalBitSet ? HeaderId.EndOfBody : HeaderId.Body;
+        var headerId = packet.Opcode.IsFinalBitSet ? HeaderId.EndOfBody : HeaderId.Body;
 
         if (packet.Headers.TryGetValue(HeaderId.Name, out var nameHeader))
             actualFileName = nameHeader.GetValueAsUnicodeString(true);

@@ -1,6 +1,7 @@
 using Haraltd.DataTypes.Events;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
+using Haraltd.Operations.Commands;
 using static Haraltd.Operations.Managers.AuthenticationManager;
 
 namespace Haraltd.Operations.OutputStream;
@@ -8,20 +9,20 @@ namespace Haraltd.Operations.OutputStream;
 public static class Output
 {
     private static OutputBase _output = new CommandOutput();
+    private static bool _waitOnOutput = true;
 
     public static bool IsOnSocket { get; private set; }
-
-    public static event Action<string> OnStarted;
 
     public static ErrorData StartSocketServer(string socketPath, OperationToken token)
     {
         try
         {
             _output = new SocketOutput(socketPath, token);
-            IsOnSocket = true;
 
-            OnStarted?.Invoke(socketPath);
-            _output.WaitForClose();
+            IsOnSocket = true;
+            _waitOnOutput = false;
+
+            Console.WriteLine($"[+] Server started at '{socketPath}'");
         }
         catch (Exception e)
         {
@@ -33,14 +34,42 @@ public static class Output
         return Errors.ErrorNone;
     }
 
+    public static void SetContinue()
+    {
+        _waitOnOutput = false;
+    }
+
+    public static void Close()
+    {
+        _output.Close();
+    }
+
     public static int Result<T>(T result, ErrorData error, OperationToken token)
         where T : IResult
     {
         if (error != Errors.ErrorNone)
             return Error(error, token);
 
-        IResult outputResult = result;
-        return _output.EmitResult(outputResult, token);
+        return _output.EmitResult(result, token);
+    }
+
+    public static int ResultWithContext<T>(
+        T result,
+        ErrorData error,
+        OperationToken token,
+        CommandParserContext context
+    )
+        where T : IResult
+    {
+        if (error != Errors.ErrorNone)
+            return ErrorWithContext(error, token, context);
+
+        if (context != null)
+        {
+            context.Error = error;
+        }
+
+        return _output.EmitResult(result, token);
     }
 
     public static int Error(ErrorData error, OperationToken token)
@@ -48,15 +77,37 @@ public static class Output
         return _output.EmitError(error, token);
     }
 
+    public static int ErrorWithContext(
+        ErrorData error,
+        OperationToken token,
+        CommandParserContext context
+    )
+    {
+        if (context != null)
+        {
+            context.Error = error;
+            if (!context.ShouldOutputError)
+                return 1;
+        }
+
+        return _output.EmitError(error, token);
+    }
+
     public static void Event<T>(T ev, OperationToken token)
         where T : IEvent
     {
+        if (_waitOnOutput)
+            return;
+
         _output.EmitEvent(ev, token);
     }
 
     public static void ClientEvent<T>(T ev, OperationToken token)
         where T : IEvent
     {
+        if (_waitOnOutput)
+            return;
+
         _output.EmitEvent(ev, token, true);
     }
 
@@ -66,6 +117,9 @@ public static class Output
     )
         where T : AuthenticationEvent
     {
+        if (_waitOnOutput)
+            return false;
+
         _ = Task.Run(() =>
             _output.EmitAuthenticationRequest(authEvent, authEvent.Token, authAgentType)
         );
@@ -78,6 +132,9 @@ public static class Output
         string response
     )
     {
+        if (_waitOnOutput)
+            return false;
+
         return _output.SetAuthenticationResponse(token, authId, response);
     }
 }
@@ -114,5 +171,5 @@ internal abstract class OutputBase
         return true;
     }
 
-    internal virtual void WaitForClose() { }
+    internal virtual void Close() { }
 }

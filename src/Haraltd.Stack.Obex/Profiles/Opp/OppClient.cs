@@ -13,11 +13,11 @@ namespace Haraltd.Stack.Obex.Profiles.Opp;
 public record OppClientProperties : ObexClientProperties;
 
 public class OppClient(OppClientProperties properties)
-    : ObexClient<OppClientProperties>(OppService.Id, properties)
+    : ObexClient<OppClientProperties>(OppStatic.Id, properties)
 {
     private ObexHeader _connectionIdHeader;
-    private ushort _clientPacketSize = 256;
-    private readonly BlockingCollection<string> _fileQueue = [];
+    private ushort _clientPacketSize = OppStatic.MinimumClientPacketSize;
+    private readonly BlockingCollection<FileTransferModel> _fileQueue = [];
 
     public override async ValueTask<ErrorData> StartAsync()
     {
@@ -25,9 +25,18 @@ public class OppClient(OppClientProperties properties)
         if (error == Errors.ErrorNone)
         {
             _ = Task.Run(async () => await FilesQueueProcessorAsync(Token.CancelTokenSource.Token));
+            Socket.ConnectionStatusEvent += SocketOnConnectionStatusEvent;
         }
 
         return error;
+    }
+
+    private void SocketOnConnectionStatusEvent(bool connected)
+    {
+        if (!connected)
+        {
+            Dispose();
+        }
     }
 
     public override async ValueTask<ErrorData> StopAsync()
@@ -43,7 +52,7 @@ public class OppClient(OppClientProperties properties)
         {
             try
             {
-                _fileQueue.Add(fileTransfer.FileName);
+                _fileQueue.Add(fileTransfer);
             }
             catch (Exception e)
             {
@@ -58,12 +67,23 @@ public class OppClient(OppClientProperties properties)
     {
         _connectionIdHeader = connectionResponse.GetHeader(HeaderId.ConnectionId);
 
-        _clientPacketSize = Math.Max(
-            _clientPacketSize,
-            (ushort)(
-                ((ObexConnectPacket)connectionResponse).MaximumPacketLength - _clientPacketSize
-            )
-        );
+        var mtu = Socket.Mtu - OppStatic.MinimumClientPacketSize;
+        if (mtu >= OppStatic.MinimumClientPacketSize)
+        {
+            _clientPacketSize = (ushort)mtu;
+            return;
+        }
+
+        var maxPacketSize =
+            (connectionResponse as ObexConnectPacket)!.MaximumPacketLength
+            - OppStatic.MinimumClientPacketSize;
+        if (maxPacketSize >= OppStatic.MinimumClientPacketSize)
+        {
+            _clientPacketSize = (ushort)maxPacketSize;
+            return;
+        }
+
+        _clientPacketSize = OppStatic.MinimumClientPacketSize;
     }
 
     private (FileTransferModel, ErrorData) GetInfo(string filepath)
@@ -99,9 +119,12 @@ public class OppClient(OppClientProperties properties)
     {
         try
         {
-            foreach (var fileName in _fileQueue.GetConsumingEnumerable(token))
+            foreach (var fileTransfer in _fileQueue.GetConsumingEnumerable(token))
             {
-                if (await SendFileAsync(fileName) is var error && error != Errors.ErrorNone)
+                if (Cts.Token.IsCancellationRequested)
+                    Cts = Token.LinkedCancelTokenSource;
+
+                if (await SendFileAsync(fileTransfer) is var error && error != Errors.ErrorNone)
                 {
                     Output.Event(error, Token);
                     await StopAsync();
@@ -112,34 +135,20 @@ public class OppClient(OppClientProperties properties)
         }
         catch
         {
-            // ignore
+            await StopAsync();
         }
     }
 
-    private async ValueTask<ErrorData> SendFileAsync(string fileName)
+    private async ValueTask<ErrorData> SendFileAsync(FileTransferModel fileTransfer)
     {
-        var file = new FileInfo(fileName);
-        var filename = Path.GetFileName(file.Name);
-
-        await using FileStream fileStream = new(
-            fileName,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            _clientPacketSize,
-            true
-        );
+        var filename = fileTransfer.Name;
 
         var buffer = new byte[_clientPacketSize];
         var bodyHeader = new ObexHeader(HeaderId.Body, buffer);
         var eobHeader = new ObexHeader(HeaderId.EndOfBody, buffer);
 
-        var data = new FileTransferEventCombined(false)
+        var data = new FileTransferEventCombined(false, fileTransfer)
         {
-            Address = Socket.Address.ToString("C"),
-            Name = filename,
-            FileName = fileName,
-            FileSize = file.Length,
             Action = IEvent.EventAction.Updated,
             Status = IFileTransferEvent.TransferStatus.Active,
         };
@@ -148,8 +157,13 @@ public class OppClient(OppClientProperties properties)
             new ObexOpcode(ObexOperation.Put, false),
             _connectionIdHeader!,
             new ObexHeader(HeaderId.Name, filename, true, Encoding.BigEndianUnicode),
-            new ObexHeader(HeaderId.Length, (int)file.Length),
-            new ObexHeader(HeaderId.Type, MimeTypes.GetMimeType(file.Name), true, Encoding.ASCII),
+            new ObexHeader(HeaderId.Length, (int)fileTransfer.FileSize),
+            new ObexHeader(
+                HeaderId.Type,
+                MimeTypes.GetMimeType(fileTransfer.Name),
+                true,
+                Encoding.ASCII
+            ),
             bodyHeader
         );
 
@@ -159,6 +173,15 @@ public class OppClient(OppClientProperties properties)
 
         try
         {
+            await using FileStream fileStream = new(
+                fileTransfer.FileName,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                _clientPacketSize,
+                true
+            );
+
             int bytesRead;
             var totalRead = 0;
 
@@ -181,7 +204,7 @@ public class OppClient(OppClientProperties properties)
                     return Errors.ErrorOperationCancelled;
                 }
 
-                if (bytesRead != _clientPacketSize && totalRead == file.Length)
+                if (bytesRead != _clientPacketSize && totalRead == fileTransfer.FileSize)
                 {
                     eobHeader.Buffer = buffer[..bytesRead];
 
@@ -257,7 +280,13 @@ public class OppClient(OppClientProperties properties)
 
     public override void Dispose()
     {
-        _fileQueue.CompleteAdding();
+        _fileQueue?.CompleteAdding();
+        if (Socket != null)
+            Socket.ConnectionStatusEvent -= SocketOnConnectionStatusEvent;
+
+        if (!Cts.IsCancellationRequested)
+            Cts.Cancel();
+
         base.Dispose();
         GC.SuppressFinalize(this);
     }

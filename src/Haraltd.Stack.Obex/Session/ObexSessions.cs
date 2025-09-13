@@ -57,7 +57,7 @@ public class ObexSessions<TClient, TClientProperties, TServer, TSubServer, TServ
                 "No session exists for Object Push"
             );
 
-        if ((session is TClient && session.Token.ClientId != token.ClientId) || session is TServer)
+        if (session is TClient or TServer && session.Token.ClientId != token.ClientId)
             return Errors.ErrorDeviceFileTransferSession.AddMetadata(
                 "exception",
                 "This transfer is controlled by another client"
@@ -73,7 +73,7 @@ public class ObexSessions<TClient, TClientProperties, TServer, TSubServer, TServ
         out ErrorData error
     )
     {
-        return GetSession(token, address, out session, out error);
+        return GetSession(token, address, true, out session, out error);
     }
 
     public bool GetServerSession(
@@ -83,7 +83,7 @@ public class ObexSessions<TClient, TClientProperties, TServer, TSubServer, TServ
         out ErrorData error
     )
     {
-        return GetSession(token, address, out session, out error);
+        return GetSession(token, address, true, out session, out error);
     }
 
     public bool GetServerTransferSession(
@@ -93,7 +93,7 @@ public class ObexSessions<TClient, TClientProperties, TServer, TSubServer, TServ
         out ErrorData error
     )
     {
-        return GetSession(token, address, out session, out error);
+        return GetSession(token, address, false, out session, out error);
     }
 
     public void RemoveSession(IObexSession session)
@@ -104,6 +104,7 @@ public class ObexSessions<TClient, TClientProperties, TServer, TSubServer, TServ
     public bool GetSession<TObexSession>(
         OperationToken token,
         BluetoothAddress address,
+        bool checkClientId,
         out TObexSession session,
         out ErrorData error
     )
@@ -112,7 +113,7 @@ public class ObexSessions<TClient, TClientProperties, TServer, TSubServer, TServ
         session = null;
         error = Errors.ErrorNone;
 
-        if (!GetSession(token, address, out session))
+        if (!GetSession(token, address, checkClientId, out session))
             error = Errors.ErrorDeviceFileTransferSession.AddMetadata(
                 "exception",
                 "No session exists for Object Push Client"
@@ -124,6 +125,7 @@ public class ObexSessions<TClient, TClientProperties, TServer, TSubServer, TServ
     public bool GetSession<TObexSession>(
         OperationToken token,
         BluetoothAddress addr,
+        bool checkClientId,
         out TObexSession session
     )
         where TObexSession : class, IObexSession
@@ -131,12 +133,11 @@ public class ObexSessions<TClient, TClientProperties, TServer, TSubServer, TServ
         session = null;
 
         foreach (var (_, s) in _sessions)
-            if (
-                s is TObexSession obexSession
-                && obexSession.Address == addr
-                && obexSession.Token.ClientId == token.ClientId
-            )
+            if (s is TObexSession obexSession && obexSession.Address == addr)
             {
+                if (checkClientId && obexSession.Token.ClientId != token.ClientId)
+                    continue;
+
                 session = obexSession;
                 break;
             }

@@ -2,7 +2,6 @@ using ConsoleAppFramework;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.OutputStream;
-using Haraltd.Stack.Base;
 
 namespace Haraltd.Operations.Commands.Definitions;
 
@@ -20,14 +19,18 @@ public class Server
             return Errors.ErrorUnsupported.Code.Value;
 
         if (socketPath == "")
-            socketPath = IServer.SocketPath;
+            socketPath = OperationHost.Instance.Server.SocketPath;
+
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
 
         var error = OperationHost.Instance.Server.StartServer(
+            parserContext!.Token,
             socketPath,
             tray ? "" : "server start -t"
         );
         if (error != Errors.ErrorNone)
-            Output.Error(error, OperationToken.None);
+            Output.ErrorWithContext(error, parserContext!.Token, parserContext);
 
         return error.Code.Value;
     }
@@ -40,11 +43,14 @@ public class Server
         if (Output.IsOnSocket)
             return Errors.ErrorUnsupported.Code.Value;
 
+        var parserContext = context.State as CommandParserContext;
+        parserContext!.SetParsedAndWait();
+
         var error = OperationHost.Instance.Server.StopServer(
             tray ? "" : string.Join(" ", context.Arguments) + " -t"
         );
         if (error != Errors.ErrorNone)
-            Output.Error(error, OperationToken.None);
+            Output.ErrorWithContext(error, parserContext!.Token, parserContext);
 
         return error.Code.Value;
     }
