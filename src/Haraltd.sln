@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haraltd.DataTypes", "Haralt
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haraltd.Operations", "Haraltd.Operations\Haraltd.Operations.csproj", "{DE25297E-B87B-7BF2-EEC0-50A784B48EE7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haraltd.Stack.Microsoft", "Haraltd.Stack.Microsoft\Haraltd.Stack.Microsoft.csproj", "{31563030-B0B3-CC2B-B60C-8B853BE0C959}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haraltd.Stack.Platform.Windows", "Haraltd.Stack.Platform.Windows\Haraltd.Stack.Platform.Windows.csproj", "{31563030-B0B3-CC2B-B60C-8B853BE0C959}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haraltd.Stack.Base", "Haraltd.Stack.Base\Haraltd.Stack.Base.csproj", "{F77392FD-1451-4273-8C7C-846698DC9008}"
 EndProject

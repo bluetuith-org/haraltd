@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Title>haraltd</Title>
     <Description>Bluetooth daemon and command-line utility</Description>
@@ -20,7 +20,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Update="CSharpier.MsBuild" Version="1.1.2">
+    <PackageReference Update="CSharpier.MsBuild" Version="1.2.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -35,7 +35,7 @@
     <ProjectReference Include="..\Haraltd.DataTypes\Haraltd.DataTypes.csproj" />
     <ProjectReference Include="..\Haraltd.Stack.Base\Haraltd.Stack.Base.csproj" />
     <ProjectReference
-      Include="..\Haraltd.Stack.Microsoft\Haraltd.Stack.Microsoft.csproj"
+      Include="..\Haraltd.Stack.Platform.Windows\Haraltd.Stack.Platform.Windows.csproj"
       Condition=" '$(IsWindows)' == 'true' "
     />
     <ProjectReference
@@ -44,7 +44,7 @@
     />
   </ItemGroup>
   <Import
-    Project="..\Haraltd.Stack.Microsoft\MicrosoftStack.props"
+    Project="..\Haraltd.Stack.Platform.Windows\MicrosoftStack.props"
     Condition=" '$(IsWindows)' == 'true' "
   />
   <Import

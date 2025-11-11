@@ -1,11 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <RootNamespace>Haraltd.DataTypes</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="InTheHand.Net.Bluetooth" Version="4.2.2" />
     <PackageReference Include="NightOwl.MixERP.Net.VCards" Version="1.0.1" />
-    <PackageReference Update="CSharpier.MsBuild" Version="1.1.2">
+    <PackageReference Update="CSharpier.MsBuild" Version="1.2.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

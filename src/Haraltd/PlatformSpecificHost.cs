@@ -7,7 +7,7 @@ public class PlatformSpecificHost : IOperationHost
 {
     public IBluetoothStack Stack { get; } =
 #if WINDOWS
-        new Haraltd.Stack.Microsoft.WindowsStack();
+        new Haraltd.Stack.Platform.Windows.WindowsStack();
 #elif OSX
         new Haraltd.Stack.Platform.MacOS.MacOsStack();
 #else
@@ -16,7 +16,7 @@ public class PlatformSpecificHost : IOperationHost
 
     public IServer Server { get; } =
 #if WINDOWS
-        new Haraltd.Stack.Microsoft.Server.WindowsServer();
+        new Haraltd.Stack.Platform.Windows.Server.WindowsServer();
 #elif OSX
         new Haraltd.Stack.Platform.MacOS.Server.MacOsServer();
 #else

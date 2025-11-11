@@ -1,7 +1,6 @@
 using ConsoleAppFramework;
 using Haraltd.DataTypes.Generic;
 using Haraltd.DataTypes.Models;
-using Haraltd.DataTypes.OperationToken;
 using Haraltd.Operations.OutputStream;
 
 // ReSharper disable InvalidXmlDocComment

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Haraltd.Stack.Base</RootNamespace>
@@ -7,7 +7,11 @@
     <ProjectReference Include="..\Haraltd.DataTypes\Haraltd.DataTypes.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="DotNext" Version="5.24.0" />
-    <PackageReference Include="DotNext.Threading" Version="5.24.0" />
+    <PackageReference Include="DotNext" Version="5.26.1" />
+    <PackageReference Include="DotNext.Threading" Version="5.26.1" />
+    <PackageReference Update="CSharpier.MsBuild" Version="1.2.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 </Project>

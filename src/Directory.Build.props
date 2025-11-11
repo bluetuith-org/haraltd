@@ -17,13 +17,13 @@
     <PropertyGroup Condition=" '$(IsWindows)' == 'true' ">
         <DefineConstants>Windows</DefineConstants>
         <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+        <RuntimeIdentifier>win-arm64</RuntimeIdentifier>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(IsOSX)' == 'true' ">
         <DefineConstants>OSX</DefineConstants>
         <TargetFramework>net10.0-macos</TargetFramework>
         <RuntimeIdentifiers>osx-arm64</RuntimeIdentifiers>
     </PropertyGroup>
-    
     <PropertyGroup>
         <PublishAot>True</PublishAot>
         <SelfContained>true</SelfContained>
