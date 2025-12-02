@@ -13,7 +13,7 @@ public static class SerializerExtensions
 
     private static void IgnoreEmptyStringModifier(JsonTypeInfo typeInfo)
     {
-        if (typeInfo == null || typeInfo.Kind != JsonTypeInfoKind.Object)
+        if (typeInfo is not { Kind: JsonTypeInfoKind.Object })
             return;
 
         foreach (var property in typeInfo.Properties)
@@ -37,15 +37,15 @@ public static class SerializerExtensions
         }
     }
 
-#pragma warning disable IL2026,IL3050
     public static void SerializeAll<T>(this T result, Utf8JsonWriter writer)
     {
-        JsonSerializer.Serialize(writer, result, Options);
+        var typeInfo = Options.GetTypeInfo(typeof(T)) as JsonTypeInfo<T>;
+        JsonSerializer.Serialize(writer, result, typeInfo);
     }
 
     public static void SerializeSelected<T>(this T result, Utf8JsonWriter writer)
     {
-        JsonSerializer.Serialize(writer, result, Options);
+        var typeInfo = Options.GetTypeInfo(typeof(T)) as JsonTypeInfo<T>;
+        JsonSerializer.Serialize(writer, result, typeInfo);
     }
-#pragma warning restore IL2026,IL3050
 }
