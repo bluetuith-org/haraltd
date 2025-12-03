@@ -17,16 +17,21 @@
     <PropertyGroup Condition=" '$(IsWindows)' == 'true' ">
         <DefineConstants>Windows</DefineConstants>
         <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
-        <RuntimeIdentifier>win-arm64</RuntimeIdentifier>
+        <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(IsOSX)' == 'true' ">
         <DefineConstants>OSX</DefineConstants>
         <TargetFramework>net10.0-macos</TargetFramework>
-        <RuntimeIdentifiers>osx-arm64</RuntimeIdentifiers>
+        <RuntimeIdentifiers>osx-x64;osx-arm64</RuntimeIdentifiers>
     </PropertyGroup>
     <PropertyGroup>
         <PublishAot>True</PublishAot>
         <SelfContained>true</SelfContained>
+        <PublishReadyToRun>false</PublishReadyToRun>
+        <PublishSingleFile Condition="$(IsWindows) == 'true'">true</PublishSingleFile>
+        <SkipCopyingSymbolsToOutputDirectory>true</SkipCopyingSymbolsToOutputDirectory>
+        <CopyOutputSymbolsToOutputDirectory>false</CopyOutputSymbolsToOutputDirectory>
+        <DebuggerSupport>false</DebuggerSupport>
         <InvariantGlobalization>true</InvariantGlobalization>
         <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
         <DebugType>none</DebugType>
