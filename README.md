@@ -19,17 +19,49 @@ The available features per-platform are [here](https://github.com/bluetuith-org/
 - Windows 10 19041 or later.
 - Administrator access for certain Registry-related APIs.
 
-_Note_:
-These builds are currently not signed, which means while launching this application,
-Microsoft SmartScreen warnings may pop up. Press "Run anyway" to run the application.
-Also, Windows Security (i.e. Antimalware Service Executable) may try to scan the application while it is being launched,
-which will delay and increase the startup time.
+> [!Note]
+> These builds are currently not signed, which means while launching this application,
+> Microsoft SmartScreen warnings may pop up. Press "Run anyway" to run the application.
+> Also, Windows Security (i.e. Antimalware Service Executable) may try to scan the application while it is being launched,
+> which will delay and increase the startup time.
 
 ### Download and Installation
 All downloads can be found within the 'Releases' page of the repository.
+Select a download with the "win-" prefix and the appropriate CPU architecture.
 
-- Download the binary that matches your CPU architecture to a known path.
+- Download the zip archive to a known path and extract it.
 - Open CMD or Powershell, and run the binary (or alternatively, double-click on the executable to launch the daemon).
+
+## MacOS
+- Preferably Ventura or later (The daemon was tested on Sequoia).
+
+> [!CAUTION]
+> Do not attempt to execute this application as root.
+> This application only requires the __Bluetooth__ and __Full Disk Access__ permissions.
+
+> [!NOTE]
+> These builds are ad-hoc signed within the CI, which means additional steps must be done
+> before executing the application, which is described in the next section.
+
+### Download and Installation
+All downloads can be found within the 'Releases' page of the repository.
+Select a download with the "osx-" prefix and the appropriate CPU architecture.
+
+- Download the zip archive to a known path and extract it to the **/Applications** folder.
+- Execute the following command, which removes the 'com.apple.quarantine' bit from the file, so that
+  it can be launched:
+  ```sh
+  xattr -dr com.apple.quarantine /Applications/Haraltd.app
+  ```
+- Double-click on the application, and wait for it to launch. If the system prompts for any permissions, press "OK".
+
+Alternatively, to execute it as a command-line tool, use the following command:
+```sh
+/Applications/Haraltd.app/Contents/MacOS/haraltd <commands>
+```
+
+> [!WARNING]
+> The binary must remain within the application. Do not attempt to place the binary in a location other than the application container.
 
 # Documentation
 This documentation is mostly a quick-start guide. Detailed documentation will come later.
