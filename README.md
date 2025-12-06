@@ -31,6 +31,8 @@ Select a download with the "win-" prefix and the appropriate CPU architecture.
 
 - Download the zip archive to a known path and extract it.
 - Open CMD or Powershell, and run the binary (or alternatively, double-click on the executable to launch the daemon).
+- Once the daemon has launched, the Haraltd icon should be displayed in the task bar. To stop the daemon, right-click
+  on the icon, and select the **Close** menu item.
 
 ## MacOS
 - Preferably Ventura or later (The daemon was tested on Sequoia).
@@ -54,6 +56,8 @@ Select a download with the "osx-" prefix and the appropriate CPU architecture.
   xattr -dr com.apple.quarantine /Applications/Haraltd.app
   ```
 - Double-click on the application, and wait for it to launch. If the system prompts for any permissions, press "OK".
+- Once it has finished launching, a Bluetooth icon will popup on the status bar. To stop the daemon, click on the icon
+  and select the **Close** menu item.
 
 Alternatively, to execute it as a command-line tool, use the following command:
 ```sh
